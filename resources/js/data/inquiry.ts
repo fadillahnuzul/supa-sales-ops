@@ -1,0 +1,48 @@
+import type { Inquiry } from '../types/inquiry';
+
+export const inquiryData: Inquiry[] = [
+    {
+        id: 1,
+        inquiryCode: 'INQ-2026-0001',
+        inquiryDate: '2026-09-29',
+        etd: '2026-10-10',
+        picSales: 'Ine Suwartining',
+        customer: 'PT Makanan Sejahtera',
+        segmentation: 'General Food Processing',
+        level: 'Medium Risk',
+        sterilization: 'Steam',
+        details: [
+            {
+                id: 1,
+                item: 'Black Pepper Ground 550GL',
+                itemCode: 'SSN-BP-GR01',
+                qty: 500,
+                sourceAP: 'Local',
+                lastOrderDate: '2026-07-15',
+                lastOrderPrice: 110000,
+                pricelist: 115000,
+                alternativePrice: 112000,
+                recommendedPrice: 113500,
+                approvedPrice: 113000,
+                approvedDate: '2026-09-29',
+                offer1: 116000,
+                offer2: 115000,
+                offer3: 114000,
+                finalPrice: 113000,
+                note: 'Priority customer',
+            },
+        ],
+    },
+    {
+        id: 2,
+        inquiryCode: 'INQ-2026-0002',
+        inquiryDate: '2026-09-29',
+        etd: '2026-10-14',
+        picSales: 'Made',
+        customer: 'CV Berkah Snack Sejahtera',
+        segmentation: 'Snack Industry',
+        level: 'High Risk',
+        sterilization: 'Steam',
+        details: [],
+    },
+];
