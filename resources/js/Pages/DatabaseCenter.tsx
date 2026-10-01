@@ -1,8 +1,12 @@
 import {
     Head,
+    router,
 } from '@inertiajs/react';
 
+import { route } from 'ziggy-js';
+
 import {
+    useEffect,
     useMemo,
     useState,
 } from 'react';
@@ -19,16 +23,27 @@ import ProductTable from '../Components/DatabaseCenter/ProductTable';
 import CompetitorTable from '../Components/DatabaseCenter/CompetitorTable';
 
 import {
-    customers,
     products,
     competitors,
 } from '../data/databaseCenter';
 
 import type {
+    Customer,
     DatabaseTab,
 } from '../types/databaseCenter';
 
-export default function DatabaseCenter() {
+interface DatabaseCenterProps {
+    customers: Customer[];
+    segmentations: Array<{
+        id: number;
+        name: string;
+    }>;
+}
+
+export default function DatabaseCenter({
+    customers: initialCustomers,
+    segmentations,
+}: DatabaseCenterProps) {
     const [
         activeTab,
         setActiveTab,
@@ -36,19 +51,34 @@ export default function DatabaseCenter() {
         'customer'
     );
 
-    const [modalOpen, setModalOpen] = useState(false);
+    const [modalOpen, setModalOpen] =
+        useState(false);
+
+    const [
+        editingCustomer,
+        setEditingCustomer,
+    ] = useState<Customer | null>(
+        null
+    );
 
     const [
         search,
         setSearch,
     ] = useState('');
 
+    const [customerRows, setCustomerRows] =
+        useState<Customer[]>(initialCustomers);
+
+    useEffect(() => {
+        setCustomerRows(initialCustomers);
+    }, [initialCustomers]);
+
     const filteredCustomers =
         useMemo(() => {
             const keyword =
                 search.toLowerCase();
 
-            return customers.filter(
+            return customerRows.filter(
                 (customer) =>
                     customer.company
                         .toLowerCase()
@@ -60,7 +90,7 @@ export default function DatabaseCenter() {
                         .toLowerCase()
                         .includes(keyword)
             );
-        }, [search]);
+        }, [customerRows, search]);
 
     const filteredProducts =
         useMemo(() => {
@@ -101,6 +131,53 @@ export default function DatabaseCenter() {
         setSearch('');
     }
 
+    function openCreateCustomerModal() {
+        setEditingCustomer(null);
+        setModalOpen(true);
+    }
+
+    function openEditCustomerModal(
+        customer: Customer
+    ) {
+        setEditingCustomer(customer);
+        setModalOpen(true);
+    }
+
+    function closeCustomerModal() {
+        setModalOpen(false);
+        setEditingCustomer(null);
+    }
+
+    function handleCustomerDelete(
+        customerId: number
+    ) {
+        if (
+            !window.confirm(
+                'Hapus customer ini?'
+            )
+        ) {
+            return;
+        }
+
+        router.delete(
+            route('customers.destroy', customerId),
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setCustomerRows((
+                        currentRows
+                    ) =>
+                        currentRows.filter(
+                            (customer) =>
+                                customer.id !==
+                                customerId
+                        )
+                    );
+                },
+            }
+        );
+    }
+
     return (
         <>
             <Head title="Database Center" />
@@ -108,15 +185,14 @@ export default function DatabaseCenter() {
             <AuthenticatedLayout>
                 <div className="min-h-full bg-[#f6f7f8] py-3 px-4">
                     <div className="mx-auto space-y-5">
-
                         <DatabaseHeader
                             activeTab={
                                 activeTab
                             }
-                            onAdd={() => setModalOpen(true)}
+                            onAdd={
+                                openCreateCustomerModal
+                            }
                         />
-
-
 
                         <DatabaseTabs
                             activeTab={
@@ -143,6 +219,12 @@ export default function DatabaseCenter() {
                                     data={
                                         filteredCustomers
                                     }
+                                    onEdit={
+                                        openEditCustomerModal
+                                    }
+                                    onDelete={
+                                        handleCustomerDelete
+                                    }
                                 />
                             )}
 
@@ -163,13 +245,19 @@ export default function DatabaseCenter() {
                                     }
                                 />
                             )}
-
                     </div>
                 </div>
+
                 <DatabaseFormModal
                     open={modalOpen}
                     activeTab={activeTab}
-                    onClose={() => setModalOpen(false)}
+                    onClose={closeCustomerModal}
+                    editingCustomer={
+                        editingCustomer
+                    }
+                    segmentations={
+                        segmentations
+                    }
                 />
             </AuthenticatedLayout>
         </>

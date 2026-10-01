@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 
 import type {
+    Customer,
     DatabaseTab,
     Division,
     RiskLevel,
@@ -11,19 +14,30 @@ interface Props {
     open: boolean;
     activeTab: DatabaseTab;
     onClose: () => void;
+
+    editingCustomer?: Customer | null;
+
+    segmentations: SegmentationOption[];
+}
+
+interface SegmentationOption {
+    id: number;
+    name: string;
 }
 
 export default function DatabaseFormModal({
     open,
     activeTab,
     onClose,
+    editingCustomer = null,
+    segmentations = [],
 }: Props) {
     const [customerForm, setCustomerForm] = useState({
         company: '',
         address: '',
-        segmentation: '',
-        level: 'Low Risk' as RiskLevel,
-        division: 'INDUSTRY' as Division,
+        segmentationId: '',
+        level: 'Low' as RiskLevel,
+        division: 'Industri' as Division,
         pic: '',
         phone: '',
     });
@@ -43,26 +57,88 @@ export default function DatabaseFormModal({
         product: '',
         qty: '',
         price: '',
-        division: 'INDUSTRY' as Division,
+        division: 'Industri' as Division,
         notes: '',
         recordedAt: new Date().toISOString().slice(0, 10),
     });
 
+    // Close modal with Escape
     useEffect(() => {
         if (!open) return;
 
-        const handleEscape = (event: KeyboardEvent) => {
+        const handleEscape = (
+            event: KeyboardEvent
+        ) => {
             if (event.key === 'Escape') {
                 onClose();
             }
         };
 
-        window.addEventListener('keydown', handleEscape);
+        window.addEventListener(
+            'keydown',
+            handleEscape
+        );
 
         return () => {
-            window.removeEventListener('keydown', handleEscape);
+            window.removeEventListener(
+                'keydown',
+                handleEscape
+            );
         };
     }, [open, onClose]);
+
+
+    // Fill form when editing customer
+    useEffect(() => {
+        if (!open) return;
+
+        if (
+            activeTab === 'customer' &&
+            editingCustomer
+        ) {
+            setCustomerForm({
+                company:
+                    editingCustomer.company ?? '',
+
+                address:
+                    editingCustomer.address ?? '',
+
+                segmentationId:
+                    editingCustomer.segmentationId
+                        ?.toString() ?? '',
+
+                level:
+                    editingCustomer.level,
+
+                division:
+                    editingCustomer.division,
+
+                pic:
+                    editingCustomer.pic ?? '',
+
+                phone:
+                    editingCustomer.phone ?? '',
+            });
+
+            return;
+        }
+
+        if (activeTab === 'customer') {
+            setCustomerForm({
+                company: '',
+                address: '',
+                segmentationId: '',
+                level: 'Low',
+                division: 'Industri',
+                pic: '',
+                phone: '',
+            });
+        }
+    }, [
+        open,
+        activeTab,
+        editingCustomer,
+    ]);
 
     if (!open) {
         return null;
@@ -72,7 +148,46 @@ export default function DatabaseFormModal({
         event.preventDefault();
 
         if (activeTab === 'customer') {
-            console.log('Customer:', customerForm);
+            const payload = {
+                name: customerForm.company,
+                address: customerForm.address,
+                segmentation_id: customerForm.segmentationId
+                    ? Number(
+                        customerForm.segmentationId
+                    )
+                    : null,
+                level: customerForm.level,
+                divisi: customerForm.division,
+                pic: customerForm.pic,
+                phone: customerForm.phone,
+            };
+
+            if (editingCustomer) {
+                router.put(
+                    route(
+                        'customers.update',
+                        editingCustomer.id
+                    ),
+                    payload,
+                    {
+                        preserveScroll: true,
+                        onSuccess: () => onClose(),
+                    }
+                );
+
+                return;
+            }
+
+            router.post(
+                route('customers.store'),
+                payload,
+                {
+                    preserveScroll: true,
+                    onSuccess: () => onClose(),
+                }
+            );
+
+            return;
         }
 
         if (activeTab === 'product') {
@@ -88,10 +203,12 @@ export default function DatabaseFormModal({
 
     const title =
         activeTab === 'customer'
-            ? 'Tambah Customer'
+            ? editingCustomer
+                ? 'Edit Customer'
+                : 'Tambah Customer'
             : activeTab === 'product'
-              ? 'Tambah Produk'
-              : 'Tambah Data Kompetitor';
+                ? 'Tambah Produk'
+                : 'Tambah Data Kompetitor';
 
     return (
         <div
@@ -173,19 +290,41 @@ export default function DatabaseFormModal({
                                     </Field>
 
                                     <Field label="Segmentasi">
-                                        <input
+                                        <select
                                             required
-                                            value={customerForm.segmentation}
+                                            value={
+                                                customerForm.segmentationId
+                                            }
                                             onChange={(e) =>
                                                 setCustomerForm({
                                                     ...customerForm,
-                                                    segmentation:
+                                                    segmentationId:
                                                         e.target.value,
                                                 })
                                             }
                                             className={inputClass}
-                                            placeholder="Contoh: Snack Industry"
-                                        />
+                                        >
+                                            <option value="">
+                                                Pilih Segmentasi
+                                            </option>
+
+                                            {segmentations.map(
+                                                (segmentation) => (
+                                                    <option
+                                                        key={
+                                                            segmentation.id
+                                                        }
+                                                        value={
+                                                            segmentation.id
+                                                        }
+                                                    >
+                                                        {
+                                                            segmentation.name
+                                                        }
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
                                     </Field>
                                 </div>
 
@@ -218,14 +357,14 @@ export default function DatabaseFormModal({
                                             }
                                             className={inputClass}
                                         >
-                                            <option value="Low Risk">
-                                                Low Risk
+                                            <option value="Low">
+                                                Low
                                             </option>
-                                            <option value="Medium Risk">
-                                                Medium Risk
+                                            <option value="Medium">
+                                                Medium
                                             </option>
-                                            <option value="High Risk">
-                                                High Risk
+                                            <option value="High">
+                                                High
                                             </option>
                                         </select>
                                     </Field>
@@ -242,19 +381,22 @@ export default function DatabaseFormModal({
                                             }
                                             className={inputClass}
                                         >
-                                            <option value="INDUSTRY">
-                                                INDUSTRY
+                                            <option value="Industri">
+                                                Industri
                                             </option>
                                             <option value="SME">SME</option>
-                                            <option value="LOW COST">
-                                                LOW COST
+                                            <option value="Low Cost">
+                                                Low Cost
+                                            </option>
+                                            <option value="All">
+                                                All
                                             </option>
                                         </select>
                                     </Field>
                                 </div>
 
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Nama PIC">
+                                    <Field label="Nama Narahubung">
                                         <input
                                             required
                                             value={customerForm.pic}
@@ -265,7 +407,7 @@ export default function DatabaseFormModal({
                                                 })
                                             }
                                             className={inputClass}
-                                            placeholder="Nama PIC"
+                                            placeholder="Nama Narahubung"
                                         />
                                     </Field>
 
@@ -504,12 +646,15 @@ export default function DatabaseFormModal({
                                             }
                                             className={inputClass}
                                         >
-                                            <option value="INDUSTRY">
-                                                INDUSTRY
+                                            <option value="Industri">
+                                                Industri
                                             </option>
                                             <option value="SME">SME</option>
-                                            <option value="LOW COST">
-                                                LOW COST
+                                            <option value="Low Cost">
+                                                Low Cost
+                                            </option>
+                                            <option value="All">
+                                                All
                                             </option>
                                         </select>
                                     </Field>

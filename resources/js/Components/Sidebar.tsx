@@ -148,7 +148,7 @@ export default function Sidebar() {
                         </p>
 
                         <RoleBadge
-                            role={user?.role ?? 'INDUSTRY'}
+                            role={user?.role ?? 'Industri'}
                             className="mt-1"
                         />
                     </div>

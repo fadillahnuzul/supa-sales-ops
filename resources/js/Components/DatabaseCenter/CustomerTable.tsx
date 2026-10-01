@@ -12,17 +12,19 @@ import type {
 
 interface Props {
     data: Customer[];
+    onEdit?: (customer: Customer) => void;
+    onDelete?: (customerId: number) => void;
 }
 
 function riskColor(level: RiskLevel) {
     switch (level) {
-        case 'Low Risk':
+        case 'Low':
             return 'text-emerald-600';
 
-        case 'Medium Risk':
+        case 'Medium':
             return 'text-amber-600';
 
-        case 'High Risk':
+        case 'High':
             return 'text-red-600';
     }
 }
@@ -31,19 +33,24 @@ function divisionClass(
     division: Division
 ) {
     switch (division) {
-        case 'INDUSTRY':
+        case 'Industri':
             return 'bg-purple-100 text-purple-700';
 
         case 'SME':
             return 'bg-blue-100 text-blue-700';
 
-        case 'LOW COST':
+        case 'Low Cost':
             return 'bg-amber-100 text-amber-700';
+
+        case 'All':
+            return 'bg-green-100 text-green-700';
     }
 }
 
 export default function CustomerTable({
     data,
+    onEdit,
+    onDelete,
 }: Props) {
     return (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -76,7 +83,7 @@ export default function CustomerTable({
                             </th>
 
                             <th className="px-5 py-4">
-                                Kontak PIC
+                                Narahubung
                             </th>
 
                             <th className="px-5 py-4">
@@ -130,7 +137,8 @@ export default function CustomerTable({
 
                                     <td className="px-5 py-4">
                                         {
-                                            customer.segmentation
+                                            customer.segmentation ??
+                                            '-'
                                         }
                                     </td>
 
@@ -182,7 +190,15 @@ export default function CustomerTable({
 
                                     <td className="px-5 py-4">
                                         <div className="flex gap-3">
-                                            <button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    onEdit?.(
+                                                        customer
+                                                    )
+                                                }
+                                                className="text-gray-600 transition hover:text-gray-900"
+                                            >
                                                 <Pencil
                                                     size={
                                                         16
@@ -190,7 +206,15 @@ export default function CustomerTable({
                                                 />
                                             </button>
 
-                                            <button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    onDelete?.(
+                                                        customer.id
+                                                    )
+                                                }
+                                                className="text-gray-600 transition hover:text-red-600"
+                                            >
                                                 <Trash2
                                                     size={
                                                         16

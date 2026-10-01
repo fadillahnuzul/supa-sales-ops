@@ -9,7 +9,7 @@ export const inquiryData: Inquiry[] = [
         picSales: 'Ine Suwartining',
         customer: 'PT Makanan Sejahtera',
         segmentation: 'General Food Processing',
-        level: 'Medium Risk',
+        level: 'Medium',
         sterilization: 'Steam',
         details: [
             {
@@ -40,8 +40,8 @@ export const inquiryData: Inquiry[] = [
         etd: '2026-10-14',
         picSales: 'Made',
         customer: 'CV Berkah Snack Sejahtera',
-        segmentation: 'Snack Industry',
-        level: 'High Risk',
+        segmentation: 'Snack Industri',
+        level: 'High',
         sterilization: 'Steam',
         details: [],
     },

@@ -15,13 +15,13 @@ interface Props {
 
 function riskClass(level: Inquiry['level']) {
     switch (level) {
-        case 'Low Risk':
+        case 'Low':
             return 'text-emerald-600';
 
-        case 'Medium Risk':
+        case 'Medium':
             return 'text-amber-600';
 
-        case 'High Risk':
+        case 'High':
             return 'text-red-600';
     }
 }

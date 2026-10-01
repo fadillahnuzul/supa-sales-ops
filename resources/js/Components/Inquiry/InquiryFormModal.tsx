@@ -29,7 +29,7 @@ export default function InquiryFormModal({
         picSales: '',
         customer: '',
         segmentation: '',
-        level: 'Low Risk',
+        level: 'Low',
         sterilization: 'Steam',
     });
 
@@ -166,9 +166,9 @@ export default function InquiryFormModal({
                                 }
                                 className={inputClass}
                             >
-                                <option>Low Risk</option>
-                                <option>Medium Risk</option>
-                                <option>High Risk</option>
+                                <option>Low</option>
+                                <option>Medium</option>
+                                <option>High</option>
                             </select>
                         </Field>
 

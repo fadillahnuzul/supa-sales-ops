@@ -3,10 +3,10 @@ import type { PageProps, UserRole } from '@/types';
 import RoleBadge from './RoleBadge';
 
 const roles: UserRole[] = [
-    'INDUSTRY',
+    'Industri',
     'SME',
-    'LOW COST',
-    'ALL',
+    'Low Cost',
+    'All',
 ];
 
 export default function TopNavbar() {
@@ -44,7 +44,7 @@ export default function TopNavbar() {
                         </p>
 
                         <RoleBadge
-                            role={user?.role ?? 'INDUSTRY'}
+                            role={user?.role ?? 'Industri'}
                             className="mt-1"
                         />
                     </div>

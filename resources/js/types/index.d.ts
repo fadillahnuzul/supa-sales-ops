@@ -1,6 +1,6 @@
 import type { PageProps as InertiaPageProps } from '@inertiajs/core';
 
-export type UserRole = 'INDUSTRY' | 'SME' | 'LOW COST' | 'ALL';
+export type UserRole = 'Industri' | 'SME' | 'Low Cost' | 'All';
 
 export interface User {
     id: number;

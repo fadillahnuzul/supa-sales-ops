@@ -6,10 +6,10 @@ interface RoleBadgeProps {
 }
 
 const roleStyles: Record<UserRole, string> = {
-    INDUSTRY: 'bg-[#F1E4FF] text-[#6C28C9]',
+    Industri: 'bg-[#F1E4FF] text-[#6C28C9]',
     SME: 'bg-[#DDE9FF] text-[#2859BD]',
-    'LOW COST': 'bg-[#FFF0C9] text-[#946000]',
-    ALL: 'bg-[#DDF5E7] text-[#237B4B]',
+    'Low Cost': 'bg-[#FFF0C9] text-[#946000]',
+    All: 'bg-[#DDF5E7] text-[#237B4B]',
 };
 
 export default function RoleBadge({

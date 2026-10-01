@@ -4,21 +4,23 @@ export type DatabaseTab =
     | 'competitor';
 
 export type Division =
-    | 'INDUSTRY'
+    | 'Industri'
     | 'SME'
-    | 'LOW COST';
+    | 'Low Cost'
+    | 'All';
 
 export type RiskLevel =
-    | 'Low Risk'
-    | 'Medium Risk'
-    | 'High Risk';
+    | 'Low'
+    | 'Medium'
+    | 'High';
 
 export interface Customer {
     id: number;
-    customerId: string;
+    customerId?: number | string;
     company: string;
     address: string;
-    segmentation: string;
+    segmentationId?: number | string;
+    segmentation?: string;
     level: RiskLevel;
     division: Division;
     pic: string;

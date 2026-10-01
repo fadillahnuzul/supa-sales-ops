@@ -1,7 +1,7 @@
 export type RiskLevel =
-    | 'Low Risk'
-    | 'Medium Risk'
-    | 'High Risk';
+    | 'Low'
+    | 'Medium'
+    | 'High';
 
 export interface InquiryDetail {
     id: number | string;

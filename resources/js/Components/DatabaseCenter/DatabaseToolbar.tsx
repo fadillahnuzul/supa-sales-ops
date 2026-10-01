@@ -101,7 +101,7 @@ export default function DatabaseToolbar({
                             </option>
 
                             <option>
-                                Snack Industry
+                                Snack Industri
                             </option>
 
                             <option>
