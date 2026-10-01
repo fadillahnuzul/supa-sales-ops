@@ -12,28 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("
-            CREATE TYPE core.customer_division AS ENUM (
-                'Industri',
-                'Low Cost',
-                'SME',
-                'All'
-            );
+        DB::statement('DROP TYPE IF EXISTS core.customer_division CASCADE');
+        DB::statement('DROP TYPE IF EXISTS core.customer_level CASCADE');
+        DB::statement('DROP TYPE IF EXISTS core.sterilization CASCADE');
 
-            CREATE TYPE core.customer_level AS ENUM (
-                'Medium',
-                'Low',
-                'High'
-            );
-
-            CREATE TYPE core.sterilization AS ENUM (
-                'NS',
-                'S',
-                'SS'
-            );
-
-            
-        ");
+        DB::statement("CREATE TYPE core.customer_division AS ENUM ('Industri', 'Low Cost', 'SME', 'All')");
+        DB::statement("CREATE TYPE core.customer_level AS ENUM ('Medium', 'Low', 'High')");
+        DB::statement("CREATE TYPE core.sterilization AS ENUM ('NS', 'S', 'SS')");
 
         Schema::create('core.customers', function (Blueprint $table) {
             $table->increments('id');
@@ -58,5 +43,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('core.customers');
+
+        DB::statement('DROP TYPE IF EXISTS core.customer_division CASCADE');
+        DB::statement('DROP TYPE IF EXISTS core.customer_level CASCADE');
+        DB::statement('DROP TYPE IF EXISTS core.sterilization CASCADE');
     }
 };

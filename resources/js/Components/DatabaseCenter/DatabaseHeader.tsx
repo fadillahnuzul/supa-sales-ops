@@ -4,6 +4,7 @@ import {
     Swords,
     Download,
     Plus,
+    Upload,
 } from 'lucide-react';
 
 import type {
@@ -13,6 +14,8 @@ import type {
 interface Props {
     activeTab: DatabaseTab;
     onAdd: () => void;
+    onImport?: () => void;
+    onDownloadTemplate?: () => void;
 }
 
 const config = {
@@ -27,7 +30,7 @@ const config = {
     product: {
         title: 'Database Produk',
         description:
-            'Katalog master komoditas rempah, bubuk, biji-bijian, standard pricelist dan metode sterilisasi.',
+            'Katalog master komoditas rempah, bubuk, biji-bijian, dan standard pricelist.',
         button: 'Tambah Produk',
         icon: Package,
     },
@@ -44,6 +47,8 @@ const config = {
 export default function DatabaseHeader({
     activeTab,
     onAdd,
+    onImport,
+    onDownloadTemplate,
 }: Props) {
     const item = config[activeTab];
 
@@ -80,6 +85,7 @@ export default function DatabaseHeader({
             <div className="flex items-center gap-2">
                 <button
                     type="button"
+                    onClick={onDownloadTemplate}
                     className="
                         flex h-10 items-center gap-2
                         rounded-lg
@@ -94,8 +100,30 @@ export default function DatabaseHeader({
                 >
                     <Download size={16} />
 
-                    Export CSV
+                    Download Template
                 </button>
+
+                {activeTab === 'customer' && (
+                    <button
+                        type="button"
+                        onClick={onImport}
+                        className="
+                            flex h-10 items-center gap-2
+                            rounded-lg
+                            border border-[#19875f]/30
+                            bg-[#ecfdf5]
+                            px-4
+                            text-sm font-semibold
+                            text-[#146e4e]
+                            shadow-sm
+                            hover:bg-[#dffaf0]
+                        "
+                    >
+                        <Upload size={16} />
+
+                        Import Excel
+                    </button>
+                )}
 
                 <button
                     type="button"

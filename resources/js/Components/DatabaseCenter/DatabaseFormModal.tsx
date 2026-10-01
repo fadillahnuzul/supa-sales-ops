@@ -8,6 +8,7 @@ import type {
     DatabaseTab,
     Division,
     RiskLevel,
+    Sterilization,
 } from '../../types/databaseCenter';
 
 interface Props {
@@ -36,6 +37,7 @@ export default function DatabaseFormModal({
         company: '',
         address: '',
         segmentationId: '',
+        sterilization: 'S' as Sterilization,
         level: 'Low' as RiskLevel,
         division: 'Industri' as Division,
         pic: '',
@@ -47,7 +49,6 @@ export default function DatabaseFormModal({
         description: '',
         itemCode: '',
         category: '',
-        sterilization: 'S (Steam)',
         price: '',
         unit: 'KG',
     });
@@ -107,6 +108,9 @@ export default function DatabaseFormModal({
                     editingCustomer.segmentationId
                         ?.toString() ?? '',
 
+                sterilization:
+                    editingCustomer.sterilization ?? 'S',
+
                 level:
                     editingCustomer.level,
 
@@ -128,6 +132,7 @@ export default function DatabaseFormModal({
                 company: '',
                 address: '',
                 segmentationId: '',
+                sterilization: 'S',
                 level: 'Low',
                 division: 'Industri',
                 pic: '',
@@ -156,6 +161,7 @@ export default function DatabaseFormModal({
                         customerForm.segmentationId
                     )
                     : null,
+                sterilization: customerForm.sterilization,
                 level: customerForm.level,
                 divisi: customerForm.division,
                 pic: customerForm.pic,
@@ -292,35 +298,27 @@ export default function DatabaseFormModal({
                                     <Field label="Segmentasi">
                                         <select
                                             required
-                                            value={
-                                                customerForm.segmentationId
-                                            }
+                                            value={customerForm.segmentationId}
                                             onChange={(e) =>
                                                 setCustomerForm({
                                                     ...customerForm,
-                                                    segmentationId:
-                                                        e.target.value,
+                                                    segmentationId: e.target.value,
                                                 })
                                             }
                                             className={inputClass}
                                         >
-                                            <option value="">
-                                                Pilih Segmentasi
+                                            <option value="" disabled>
+                                                Pilih segmentasi
                                             </option>
-
                                             {segmentations.map(
                                                 (segmentation) => (
                                                     <option
                                                         key={
                                                             segmentation.id
                                                         }
-                                                        value={
-                                                            segmentation.id
-                                                        }
+                                                        value={String(segmentation.id)}
                                                     >
-                                                        {
-                                                            segmentation.name
-                                                        }
+                                                        {segmentation.name}
                                                     </option>
                                                 )
                                             )}
@@ -344,7 +342,7 @@ export default function DatabaseFormModal({
                                     />
                                 </Field>
 
-                                <div className="grid gap-4 md:grid-cols-2">
+                                <div className="grid gap-4 md:grid-cols-3">
                                     <Field label="Level Risiko">
                                         <select
                                             value={customerForm.level}
@@ -390,6 +388,30 @@ export default function DatabaseFormModal({
                                             </option>
                                             <option value="All">
                                                 All
+                                            </option>
+                                        </select>
+                                    </Field>
+
+                                    <Field label="Sterilisasi">
+                                        <select
+                                            required
+                                            value={customerForm.sterilization}
+                                            onChange={(e) =>
+                                                setCustomerForm({
+                                                    ...customerForm,
+                                                    sterilization: e.target.value as Sterilization,
+                                                })
+                                            }
+                                            className={inputClass}
+                                        >
+                                            <option value="S">
+                                                S (Steril)
+                                            </option>
+                                            <option value="NS">
+                                                NS (Non-Steril)
+                                            </option>
+                                            <option value="SS">
+                                                SS (Super Steril)
                                             </option>
                                         </select>
                                     </Field>
@@ -492,30 +514,6 @@ export default function DatabaseFormModal({
                                             className={inputClass}
                                             placeholder="Spices & Herbs"
                                         />
-                                    </Field>
-
-                                    <Field label="Sterilisasi">
-                                        <select
-                                            value={
-                                                productForm.sterilization
-                                            }
-                                            onChange={(e) =>
-                                                setProductForm({
-                                                    ...productForm,
-                                                    sterilization:
-                                                        e.target.value,
-                                                })
-                                            }
-                                            className={inputClass}
-                                        >
-                                            <option value="S (Steam)">
-                                                S (Steam)
-                                            </option>
-                                            <option value="NS">
-                                                NS (Non-Sterilized)
-                                            </option>
-                                            <option value="ETO">ETO</option>
-                                        </select>
                                     </Field>
                                 </div>
 

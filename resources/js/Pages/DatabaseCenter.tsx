@@ -3,6 +3,10 @@ import {
     router,
 } from '@inertiajs/react';
 
+import {
+    useRef,
+} from 'react';
+
 import { route } from 'ziggy-js';
 
 import {
@@ -68,6 +72,12 @@ export default function DatabaseCenter({
 
     const [customerRows, setCustomerRows] =
         useState<Customer[]>(initialCustomers);
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [importFeedback, setImportFeedback] = useState<{
+        type: 'info' | 'success' | 'error';
+        message: string;
+    } | null>(null);
 
     useEffect(() => {
         setCustomerRows(initialCustomers);
@@ -148,6 +158,62 @@ export default function DatabaseCenter({
         setEditingCustomer(null);
     }
 
+    function handleDownloadTemplate() {
+        window.open(
+            route('customers.template'),
+            '_blank'
+        );
+    }
+
+    function handleImportClick() {
+        setImportFeedback(null);
+        fileInputRef.current?.click();
+    }
+
+    function handleImportFileChange(
+        event: React.ChangeEvent<HTMLInputElement>
+    ) {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        setImportFeedback({
+            type: 'info',
+            message: 'Sedang mengimpor data customer...',
+        });
+
+        router.post(
+            route('customers.import'),
+            formData,
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    setImportFeedback({
+                        type: 'success',
+                        message: 'Data customer berhasil diimpor.',
+                    });
+                },
+                onError: (errors) => {
+                    const message = errors.file ?? Object.values(errors)[0];
+                    setImportFeedback({
+                        type: 'error',
+                        message: String(message ?? 'Import gagal. Periksa file dan coba lagi.'),
+                    });
+                },
+                onFinish: () => {
+                    if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                    }
+                },
+            }
+        );
+    }
+
     function handleCustomerDelete(
         customerId: number
     ) {
@@ -192,7 +258,40 @@ export default function DatabaseCenter({
                             onAdd={
                                 openCreateCustomerModal
                             }
+                            onImport={
+                                handleImportClick
+                            }
+                            onDownloadTemplate={
+                                handleDownloadTemplate
+                            }
                         />
+
+                        {activeTab === 'customer' && (
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".csv,.xlsx"
+                                className="hidden"
+                                onChange={
+                                    handleImportFileChange
+                                }
+                            />
+                        )}
+
+                        {importFeedback && (
+                            <div
+                                role={importFeedback.type === 'error' ? 'alert' : 'status'}
+                                className={`rounded-lg border px-4 py-3 text-sm ${
+                                    importFeedback.type === 'error'
+                                        ? 'border-red-200 bg-red-50 text-red-700'
+                                        : importFeedback.type === 'success'
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                            >
+                                {importFeedback.message}
+                            </div>
+                        )}
 
                         <DatabaseTabs
                             activeTab={

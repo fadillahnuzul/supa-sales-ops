@@ -22,6 +22,14 @@ Route::post(
     '/database-center/customers',
     [CustomerController::class, 'store']
 )->name('customers.store');
+Route::post(
+    '/database-center/customers/import',
+    [CustomerController::class, 'import']
+)->name('customers.import');
+Route::get(
+    '/database-center/customers/template',
+    [CustomerController::class, 'template']
+)->name('customers.template');
 Route::put(
     '/database-center/customers/{customer}',
     [CustomerController::class, 'update']

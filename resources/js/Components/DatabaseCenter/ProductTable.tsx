@@ -48,10 +48,6 @@ export default function ProductTable({
                             </th>
 
                             <th className="px-5 py-4">
-                                Sterilisasi
-                            </th>
-
-                            <th className="px-5 py-4">
                                 Standard Pricelist
                             </th>
 
@@ -104,14 +100,6 @@ export default function ProductTable({
                                         {
                                             product.category
                                         }
-                                    </td>
-
-                                    <td className="px-5 py-4">
-                                        <span className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                                            {
-                                                product.sterilization
-                                            }
-                                        </span>
                                     </td>
 
                                     <td className="px-5 py-4 font-semibold">

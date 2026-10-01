@@ -30,7 +30,7 @@ export default function InquiryFormModal({
         customer: '',
         segmentation: '',
         level: 'Low',
-        sterilization: 'Steam',
+        sterilization: 'S',
     });
 
     if (!open) return null;
@@ -183,9 +183,9 @@ export default function InquiryFormModal({
                                 }
                                 className={inputClass}
                             >
-                                <option>Steam</option>
+                                <option>Steril</option>
                                 <option>Non-Sterilized</option>
-                                <option>ETO</option>
+                                <option>Super Steril</option>
                             </select>
                         </Field>
                     </div>

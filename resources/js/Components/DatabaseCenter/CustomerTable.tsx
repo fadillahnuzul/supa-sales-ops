@@ -83,6 +83,10 @@ export default function CustomerTable({
                             </th>
 
                             <th className="px-5 py-4">
+                                Sterilisasi
+                            </th>
+
+                            <th className="px-5 py-4">
                                 Narahubung
                             </th>
 
@@ -172,6 +176,10 @@ export default function CustomerTable({
                                                 customer.division
                                             }
                                         </span>
+                                    </td>
+
+                                    <td className="px-5 py-4">
+                                        {customer.sterilization}
                                     </td>
 
                                     <td className="px-5 py-4">

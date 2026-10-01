@@ -14,6 +14,11 @@ export type RiskLevel =
     | 'Medium'
     | 'High';
 
+export type Sterilization =
+    | 'NS'
+    | 'S'
+    | 'SS';
+
 export interface Customer {
     id: number;
     customerId?: number | string;
@@ -23,6 +28,7 @@ export interface Customer {
     segmentation?: string;
     level: RiskLevel;
     division: Division;
+    sterilization: Sterilization;
     pic: string;
     phone: string;
 }
@@ -33,7 +39,6 @@ export interface Product {
     description: string;
     itemCode: string;
     category: string;
-    sterilization: string;
     price: number;
     unit: string;
 }

@@ -10,7 +10,7 @@ export const inquiryData: Inquiry[] = [
         customer: 'PT Makanan Sejahtera',
         segmentation: 'General Food Processing',
         level: 'Medium',
-        sterilization: 'Steam',
+        sterilization: 'S',
         details: [
             {
                 id: 1,
@@ -42,7 +42,7 @@ export const inquiryData: Inquiry[] = [
         customer: 'CV Berkah Snack Sejahtera',
         segmentation: 'Snack Industri',
         level: 'High',
-        sterilization: 'Steam',
+        sterilization: 'S',
         details: [],
     },
 ];
