@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { route } from 'ziggy-js';
+import {
+    Plus,
+    Trash2,
+} from 'lucide-react';
 
 import type {
     Customer,
@@ -9,6 +13,7 @@ import type {
     Division,
     RiskLevel,
     Sterilization,
+    Product,
 } from '../../types/databaseCenter';
 
 interface Props {
@@ -17,11 +22,30 @@ interface Props {
     onClose: () => void;
 
     editingCustomer?: Customer | null;
+    editingProduct?: Product | null;
 
-    segmentations: SegmentationOption[];
+    segmentations?: SegmentationOption[];
+
+    materials?: MaterialOption[];
+    products?: Product[];
+    grades?: GradeOption[];
 }
 
 interface SegmentationOption {
+    id: number;
+    name: string;
+}
+
+interface MaterialOption {
+    id: number;
+    name: string;
+    code?: string | null;
+
+    source_type: 'material' | 'product';
+    source_key: string;
+}
+
+interface GradeOption {
     id: number;
     name: string;
 }
@@ -30,8 +54,14 @@ export default function DatabaseFormModal({
     open,
     activeTab,
     onClose,
+
     editingCustomer = null,
+    editingProduct = null,
+
     segmentations = [],
+    materials = [],
+    products = [],
+    grades = [],
 }: Props) {
     const [customerForm, setCustomerForm] = useState({
         company: '',
@@ -46,11 +76,10 @@ export default function DatabaseFormModal({
 
     const [productForm, setProductForm] = useState({
         name: '',
-        description: '',
-        itemCode: '',
-        category: '',
-        price: '',
-        unit: 'KG',
+        code: '',
+        stdPrice: '',
+        materials: [] as string[],
+        gradeId: '',
     });
 
     const [competitorForm, setCompetitorForm] = useState({
@@ -145,8 +174,115 @@ export default function DatabaseFormModal({
         editingCustomer,
     ]);
 
+    //Edit product
+    useEffect(() => {
+        if (
+            !open ||
+            activeTab !== 'product'
+        ) {
+            return;
+        }
+
+        if (editingProduct) {
+            setProductForm({
+                name:
+                    editingProduct.name ??
+                    '',
+
+                code:
+                    editingProduct.code ??
+                    '',
+
+                stdPrice:
+                    editingProduct.std_price
+                        ?.toString() ??
+                    '',
+
+                materials:
+                    editingProduct.materials
+                        ?.map(
+                            (item) =>
+                                `${item.material_type}:${item.material_id}`
+                        ) ??
+                    [],
+
+                gradeId:
+                    editingProduct.grade_id
+                        ?.toString() ??
+                    '',
+            });
+
+            return;
+        }
+
+        setProductForm({
+            name: '',
+            code: '',
+            stdPrice: '',
+            materials: [],
+            gradeId: '',
+        });
+    }, [
+        open,
+        activeTab,
+        editingProduct,
+    ]);
+
     if (!open) {
         return null;
+    }
+
+    function addProductMaterial() {
+        setProductForm(
+            (current) => ({
+                ...current,
+
+                materials: [
+                    ...current.materials,
+                    '',
+                ],
+            })
+        );
+    }
+
+    function removeProductMaterial(
+        index: number
+    ) {
+        setProductForm(
+            (current) => ({
+                ...current,
+
+                materials:
+                    current.materials.filter(
+                        (_, itemIndex) =>
+                            itemIndex !==
+                            index
+                    ),
+            })
+        );
+    }
+
+    function updateProductMaterial(
+        index: number,
+        value: string
+    ) {
+        setProductForm(
+            (current) => ({
+                ...current,
+
+                materials:
+                    current.materials.map(
+                        (
+                            material,
+                            itemIndex
+                        ) =>
+                            itemIndex ===
+                                index
+                                ? value
+                                : material
+                    ),
+            })
+        );
     }
 
     function submitForm(event: React.FormEvent) {
@@ -197,7 +333,65 @@ export default function DatabaseFormModal({
         }
 
         if (activeTab === 'product') {
-            console.log('Product:', productForm);
+            const payload = {
+                name:
+                    productForm.name,
+
+                code:
+                    productForm.code,
+
+                std_price:
+                    Number(
+                        productForm.stdPrice
+                    ),
+
+                materials:
+                    productForm.materials.filter(
+                        Boolean
+                    ),
+
+                grade_id:
+                    productForm.gradeId
+                        ? Number(
+                            productForm.gradeId
+                        )
+                        : null,
+            };
+
+            if (editingProduct) {
+                router.put(
+                    route(
+                        'products.update',
+                        editingProduct.id
+                    ),
+                    payload,
+                    {
+                        preserveScroll: true,
+
+                        onSuccess: () => {
+                            onClose();
+                        },
+                    }
+                );
+
+                return;
+            }
+
+            router.post(
+                route(
+                    'products.store'
+                ),
+                payload,
+                {
+                    preserveScroll: true,
+
+                    onSuccess: () => {
+                        onClose();
+                    },
+                }
+            );
+
+            return;
         }
 
         if (activeTab === 'competitor') {
@@ -213,7 +407,9 @@ export default function DatabaseFormModal({
                 ? 'Edit Customer'
                 : 'Tambah Customer'
             : activeTab === 'product'
-                ? 'Tambah Produk'
+                ? editingProduct
+                    ? 'Edit Produk'
+                    : 'Tambah Produk'
                 : 'Tambah Data Kompetitor';
 
     return (
@@ -456,102 +652,258 @@ export default function DatabaseFormModal({
                                     <Field label="Nama Produk">
                                         <input
                                             required
-                                            value={productForm.name}
+                                            value={
+                                                productForm.name
+                                            }
                                             onChange={(e) =>
                                                 setProductForm({
                                                     ...productForm,
-                                                    name: e.target.value,
+
+                                                    name:
+                                                        e.target.value,
                                                 })
                                             }
-                                            className={inputClass}
-                                            placeholder="Contoh: Black Pepper Ground"
+                                            className={
+                                                inputClass
+                                            }
+                                            placeholder="Black Pepper Ground"
                                         />
                                     </Field>
 
                                     <Field label="Item Code">
                                         <input
                                             required
-                                            value={productForm.itemCode}
-                                            onChange={(e) =>
-                                                setProductForm({
-                                                    ...productForm,
-                                                    itemCode: e.target.value,
-                                                })
+                                            value={
+                                                productForm.code
                                             }
-                                            className={inputClass}
-                                            placeholder="SSN-BP-GR01"
-                                        />
-                                    </Field>
-                                </div>
-
-                                <Field label="Deskripsi">
-                                    <textarea
-                                        rows={3}
-                                        value={productForm.description}
-                                        onChange={(e) =>
-                                            setProductForm({
-                                                ...productForm,
-                                                description: e.target.value,
-                                            })
-                                        }
-                                        className={inputClass}
-                                        placeholder="Deskripsi produk..."
-                                    />
-                                </Field>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Kategori">
-                                        <input
-                                            required
-                                            value={productForm.category}
                                             onChange={(e) =>
                                                 setProductForm({
                                                     ...productForm,
-                                                    category:
+
+                                                    code:
                                                         e.target.value,
                                                 })
                                             }
-                                            className={inputClass}
-                                            placeholder="Spices & Herbs"
+                                            className={
+                                                inputClass
+                                            }
+                                            placeholder="SSN-BP-GN01"
                                         />
                                     </Field>
                                 </div>
 
+
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Standard Pricelist">
+                                    <Field label="Standard Price">
                                         <input
                                             required
                                             type="number"
                                             min="0"
-                                            value={productForm.price}
+                                            value={
+                                                productForm.stdPrice
+                                            }
                                             onChange={(e) =>
                                                 setProductForm({
                                                     ...productForm,
-                                                    price: e.target.value,
+
+                                                    stdPrice:
+                                                        e.target.value,
                                                 })
                                             }
-                                            className={inputClass}
+                                            className={
+                                                inputClass
+                                            }
                                             placeholder="140000"
                                         />
                                     </Field>
 
-                                    <Field label="Satuan">
+
+                                    <Field label="Grade">
                                         <select
-                                            value={productForm.unit}
+                                            value={
+                                                productForm.gradeId
+                                            }
                                             onChange={(e) =>
                                                 setProductForm({
                                                     ...productForm,
-                                                    unit: e.target.value,
+
+                                                    gradeId:
+                                                        e.target.value,
                                                 })
                                             }
-                                            className={inputClass}
+                                            className={
+                                                inputClass
+                                            }
                                         >
-                                            <option value="KG">KG</option>
-                                            <option value="PCS">PCS</option>
-                                            <option value="BOX">BOX</option>
-                                            <option value="BAG">BAG</option>
+                                            <option value="">
+                                                Pilih grade
+                                            </option>
+
+                                            {grades.map(
+                                                (grade) => (
+                                                    <option
+                                                        key={
+                                                            grade.id
+                                                        }
+                                                        value={
+                                                            grade.id
+                                                        }
+                                                    >
+                                                        {
+                                                            grade.name
+                                                        }
+                                                    </option>
+                                                )
+                                            )}
                                         </select>
                                     </Field>
+                                </div>
+
+
+                                {/* MATERIALS */}
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <div className="text-sm font-medium text-gray-700">
+                                                Materials
+                                            </div>
+
+                                            <div className="mt-1 text-xs text-gray-500">
+                                                Tambahkan satu atau beberapa material untuk produk ini.
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                addProductMaterial
+                                            }
+                                            className="inline-flex items-center gap-2 rounded-lg border border-[#19875f] px-3 py-2 text-sm font-medium text-[#19875f] transition hover:bg-emerald-50"
+                                        >
+                                            <Plus size={16} />
+
+                                            Add Material
+                                        </button>
+                                    </div>
+
+
+                                    {productForm.materials.length ===
+                                        0 && (
+                                            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
+                                                Belum ada material.
+                                                Klik Add Material untuk menambahkan.
+                                            </div>
+                                        )}
+
+
+                                    {productForm.materials.map(
+                                        (
+                                            selectedMaterial,
+                                            index
+                                        ) => (
+                                            <div
+                                                key={
+                                                    index
+                                                }
+                                                className="flex items-center gap-3"
+                                            >
+                                                <div className="flex-1">
+                                                    <select
+                                                        value={
+                                                            selectedMaterial
+                                                        }
+                                                        onChange={(
+                                                            e
+                                                        ) =>
+                                                            updateProductMaterial(
+                                                                index,
+                                                                e.target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        className={
+                                                            inputClass
+                                                        }
+                                                    >
+                                                        <option value="">
+                                                            Pilih material
+                                                        </option>
+
+                                                        {materials
+                                                            .filter(
+                                                                (
+                                                                    material
+                                                                ) =>
+                                                                    material.source_key !==
+                                                                    `product:${editingProduct?.id}`
+                                                            )
+                                                            .map(
+                                                                (
+                                                                    material
+                                                                ) => {
+                                                                    /*
+                                                                     * Jangan izinkan
+                                                                     * source yang sudah
+                                                                     * dipilih di row lain.
+                                                                     */
+                                                                    const alreadySelected =
+                                                                        productForm.materials.some(
+                                                                            (
+                                                                                value,
+                                                                                itemIndex
+                                                                            ) =>
+                                                                                itemIndex !==
+                                                                                index &&
+                                                                                value ===
+                                                                                material.source_key
+                                                                        );
+
+                                                                    return (
+                                                                        <option
+                                                                            key={
+                                                                                material.source_key
+                                                                            }
+                                                                            value={
+                                                                                material.source_key
+                                                                            }
+                                                                            disabled={
+                                                                                alreadySelected
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                material.name
+                                                                            }
+
+                                                                            {material.code
+                                                                                ? ` - ${material.code}`
+                                                                                : ''}
+                                                                        </option>
+                                                                    );
+                                                                }
+                                                            )}
+                                                    </select>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        removeProductMaterial(
+                                                            index
+                                                        )
+                                                    }
+                                                    className="rounded-lg border border-red-200 p-3 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                                                    title="Hapus material"
+                                                >
+                                                    <Trash2
+                                                        size={
+                                                            17
+                                                        }
+                                                    />
+                                                </button>
+                                            </div>
+                                        )
+                                    )}
                                 </div>
                             </>
                         )}

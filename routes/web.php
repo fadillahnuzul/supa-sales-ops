@@ -1,7 +1,8 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ProductController;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -12,12 +13,12 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->name('dashboard');
 
-//Database Center
+// Database Center
 Route::get(
     '/database-center',
     [CustomerController::class, 'index']
 )->name('database-center');
-//Customer Database
+// Customer Database
 Route::post(
     '/database-center/customers',
     [CustomerController::class, 'store']
@@ -38,6 +39,30 @@ Route::delete(
     '/database-center/customers/{customer}',
     [CustomerController::class, 'destroy']
 )->name('customers.destroy');
+// Product Controller
+Route::post(
+    '/products/import',
+    [ProductController::class, 'import']
+)->name('products.import');
+Route::get(
+    '/products/template',
+    [ProductController::class, 'template']
+)->name('products.template');
+Route::post(
+    '/products',
+    [ProductController::class, 'store']
+)->name('products.store');
+
+Route::put(
+    '/products/{product}',
+    [ProductController::class, 'update']
+)->name('products.update');
+
+Route::delete(
+    '/products/{product}',
+    [ProductController::class, 'destroy']
+)->name('products.destroy');
+
 Route::get('/inquiry', function () {
     return Inertia::render('Inquiry');
 })->name('inquiry');

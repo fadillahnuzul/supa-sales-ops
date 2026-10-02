@@ -6,9 +6,11 @@ use App\Models\Sales\CompetitorModel;
 use App\Models\Sales\InquiryDetailModel;
 use App\Models\Sales\ProductCompetitorModel;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProductModel extends Model
 {
@@ -20,14 +22,24 @@ class ProductModel extends Model
 
     protected $fillable = [
         'name',
-        'name_indonesian',
         'code',
         'std_price',
+        'grade_id',
     ];
 
     protected $casts = [
         'std_price' => 'decimal:2',
     ];
+
+    public function material(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function grade(): BelongsTo
+    {
+        return $this->belongsTo(GradeModel::class, 'grade_id');
+    }
 
     public function inquiryDetails(): HasMany
     {
@@ -53,14 +65,22 @@ class ProductModel extends Model
             'product_id',
             'competitor_id'
         )
-        ->withPivot([
-            'id',
-            'price',
-            'date',
-            'note',
-            'created_at',
-            'updated_at',
-            'deleted_at',
-        ]);
+            ->withPivot([
+                'id',
+                'price',
+                'date',
+                'note',
+                'created_at',
+                'updated_at',
+                'deleted_at',
+            ]);
+    }
+
+    public function materials(): HasMany
+    {
+        return $this->hasMany(
+            ProductMaterialModel::class,
+            'product_id'
+        );
     }
 }

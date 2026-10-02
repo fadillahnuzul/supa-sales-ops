@@ -83,27 +83,31 @@ export default function DatabaseHeader({
             </div>
 
             <div className="flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={onDownloadTemplate}
-                    className="
-                        flex h-10 items-center gap-2
-                        rounded-lg
-                        border border-gray-300
-                        bg-white
-                        px-4
-                        text-sm font-semibold
-                        text-gray-700
-                        shadow-sm
-                        hover:bg-gray-50
-                    "
-                >
-                    <Download size={16} />
+                {(activeTab === 'customer' ||
+                    activeTab === 'product') && (
+                        <button
+                            type="button"
+                            onClick={onDownloadTemplate}
+                            className="
+                                flex h-10 items-center gap-2
+                                rounded-lg
+                                border border-gray-300
+                                bg-white
+                                px-4
+                                text-sm font-semibold
+                                text-gray-700
+                                shadow-sm
+                                hover:bg-gray-50
+                            "
+                        >
+                            <Download size={16} />
 
-                    Download Template
-                </button>
+                            Download Template
+                        </button>
+                    )}
 
-                {activeTab === 'customer' && (
+                {(activeTab === 'customer' ||
+                    activeTab === 'product') && (
                     <button
                         type="button"
                         onClick={onImport}

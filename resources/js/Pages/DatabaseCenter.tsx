@@ -3,15 +3,12 @@ import {
     router,
 } from '@inertiajs/react';
 
-import {
-    useRef,
-} from 'react';
-
 import { route } from 'ziggy-js';
 
 import {
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react';
 
@@ -26,28 +23,79 @@ import CustomerTable from '../Components/DatabaseCenter/CustomerTable';
 import ProductTable from '../Components/DatabaseCenter/ProductTable';
 import CompetitorTable from '../Components/DatabaseCenter/CompetitorTable';
 
+/*
+ * Product tidak lagi diambil
+ * dari dummy data.
+ */
 import {
-    products,
     competitors,
 } from '../data/databaseCenter';
 
 import type {
     Customer,
     DatabaseTab,
+    Product,
 } from '../types/databaseCenter';
+
+
+interface SegmentationOption {
+    id: number;
+    name: string;
+}
+
+interface MaterialOption {
+    id: number;
+    name: string;
+
+    code?: string | null;
+
+    source_type:
+    | 'material'
+    | 'product';
+
+    source_key: string;
+}
+
+interface GradeOption {
+    id: number;
+    name: string;
+}
 
 interface DatabaseCenterProps {
     customers: Customer[];
-    segmentations: Array<{
-        id: number;
-        name: string;
-    }>;
+
+    products: Product[];
+
+    segmentations:
+    SegmentationOption[];
+
+    materials:
+    MaterialOption[];
+
+    grades:
+    GradeOption[];
 }
+
+
+/*
+ * ================================
+ * COMPONENT
+ * ================================
+ */
 
 export default function DatabaseCenter({
     customers: initialCustomers,
-    segmentations,
+    products = [],
+    segmentations = [],
+    materials = [],
+    grades = [],
 }: DatabaseCenterProps) {
+    /*
+     * ============================
+     * TAB
+     * ============================
+     */
+
     const [
         activeTab,
         setActiveTab,
@@ -55,8 +103,24 @@ export default function DatabaseCenter({
         'customer'
     );
 
-    const [modalOpen, setModalOpen] =
-        useState(false);
+
+    /*
+     * ============================
+     * MODAL
+     * ============================
+     */
+
+    const [
+        modalOpen,
+        setModalOpen,
+    ] = useState(false);
+
+
+    /*
+     * ============================
+     * EDITING CUSTOMER
+     * ============================
+     */
 
     const [
         editingCustomer,
@@ -65,154 +129,411 @@ export default function DatabaseCenter({
         null
     );
 
+
+    /*
+     * ============================
+     * EDITING PRODUCT
+     * ============================
+     */
+
+    const [
+        editingProduct,
+        setEditingProduct,
+    ] = useState<Product | null>(
+        null
+    );
+
+
+    /*
+     * ============================
+     * SEARCH
+     * ============================
+     */
+
     const [
         search,
         setSearch,
     ] = useState('');
 
-    const [customerRows, setCustomerRows] =
-        useState<Customer[]>(initialCustomers);
 
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const [importFeedback, setImportFeedback] = useState<{
-        type: 'info' | 'success' | 'error';
+    /*
+     * ============================
+     * CUSTOMER LOCAL ROWS
+     * ============================
+     */
+
+    const [
+        customerRows,
+        setCustomerRows,
+    ] = useState<Customer[]>(
+        initialCustomers
+    );
+
+
+    /*
+     * ============================
+     * IMPORT
+     * ============================
+     */
+
+    const fileInputRef =
+        useRef<HTMLInputElement | null>(
+            null
+        );
+
+    const [
+        importFeedback,
+        setImportFeedback,
+    ] = useState<{
+        type:
+        | 'info'
+        | 'success'
+        | 'error';
+
         message: string;
-    } | null>(null);
+    } | null>(
+        null
+    );
 
+
+    /*
+     * Sync customer props.
+     */
     useEffect(() => {
-        setCustomerRows(initialCustomers);
-    }, [initialCustomers]);
+        setCustomerRows(
+            initialCustomers
+        );
+    }, [
+        initialCustomers,
+    ]);
+
+
+    /*
+     * ============================
+     * FILTER CUSTOMER
+     * ============================
+     */
 
     const filteredCustomers =
         useMemo(() => {
             const keyword =
-                search.toLowerCase();
+                search
+                    .trim()
+                    .toLowerCase();
+
+            if (!keyword) {
+                return customerRows;
+            }
 
             return customerRows.filter(
                 (customer) =>
-                    customer.company
+                    (customer.company ?? '')
                         .toLowerCase()
-                        .includes(keyword) ||
-                    customer.address
+                        .includes(
+                            keyword
+                        ) ||
+
+                    (customer.address ?? '')
                         .toLowerCase()
-                        .includes(keyword) ||
-                    customer.pic
+                        .includes(
+                            keyword
+                        ) ||
+
+                    (customer.pic ?? '')
                         .toLowerCase()
-                        .includes(keyword)
+                        .includes(
+                            keyword
+                        )
             );
-        }, [customerRows, search]);
+        }, [
+            customerRows,
+            search,
+        ]);
+
+
+    /*
+     * ============================
+     * FILTER PRODUCT
+     * ============================
+     */
 
     const filteredProducts =
         useMemo(() => {
             const keyword =
-                search.toLowerCase();
+                search
+                    .trim()
+                    .toLowerCase();
+
+            if (!keyword) {
+                return products;
+            }
 
             return products.filter(
                 (product) =>
-                    product.name
+                    (product.name ?? '')
                         .toLowerCase()
                         .includes(keyword) ||
-                    product.itemCode
+
+                    (product.code ?? '')
                         .toLowerCase()
                         .includes(keyword)
             );
-        }, [search]);
+        }, [
+            products,
+            search,
+        ]);
+
+
+    /*
+     * ============================
+     * FILTER COMPETITOR
+     * ============================
+     */
 
     const filteredCompetitors =
         useMemo(() => {
             const keyword =
-                search.toLowerCase();
+                search
+                    .trim()
+                    .toLowerCase();
+
+            if (!keyword) {
+                return competitors;
+            }
 
             return competitors.filter(
                 (competitor) =>
-                    competitor.competitor
+                    (competitor.competitor ?? '')
                         .toLowerCase()
-                        .includes(keyword) ||
-                    competitor.product
+                        .includes(
+                            keyword
+                        ) ||
+
+                    (competitor.product ?? '')
                         .toLowerCase()
-                        .includes(keyword)
+                        .includes(
+                            keyword
+                        )
             );
-        }, [search]);
+        }, [
+            search,
+        ]);
+
+
+    /*
+     * ============================
+     * CHANGE TAB
+     * ============================
+     */
 
     function changeTab(
         tab: DatabaseTab
     ) {
         setActiveTab(tab);
+
         setSearch('');
+
+        /*
+         * Bersihkan edit state
+         * ketika pindah tab.
+         */
+        setEditingCustomer(null);
+
+        setEditingProduct(null);
     }
 
-    function openCreateCustomerModal() {
+
+    /*
+     * ============================
+     * CREATE
+     * ============================
+     */
+
+    function openCreateModal() {
         setEditingCustomer(null);
+
+        setEditingProduct(null);
+
         setModalOpen(true);
     }
+
+
+    /*
+     * ============================
+     * EDIT CUSTOMER
+     * ============================
+     */
 
     function openEditCustomerModal(
         customer: Customer
     ) {
-        setEditingCustomer(customer);
+        setEditingProduct(null);
+
+        setEditingCustomer(
+            customer
+        );
+
         setModalOpen(true);
     }
 
-    function closeCustomerModal() {
-        setModalOpen(false);
+
+    /*
+     * ============================
+     * EDIT PRODUCT
+     * ============================
+     */
+
+    function openEditProductModal(
+        product: Product
+    ) {
         setEditingCustomer(null);
+
+        setEditingProduct(
+            product
+        );
+
+        setModalOpen(true);
     }
 
+
+    /*
+     * ============================
+     * CLOSE MODAL
+     * ============================
+     */
+
+    function closeModal() {
+        setModalOpen(false);
+
+        setEditingCustomer(null);
+
+        setEditingProduct(null);
+    }
+
+
     function handleDownloadTemplate() {
+        if (
+            activeTab !== 'customer' &&
+            activeTab !== 'product'
+        ) {
+            return;
+        }
+
         window.open(
-            route('customers.template'),
+            route(
+                activeTab === 'product'
+                    ? 'products.template'
+                    : 'customers.template'
+            ),
             '_blank'
         );
     }
 
     function handleImportClick() {
+        if (
+            activeTab !== 'customer' &&
+            activeTab !== 'product'
+        ) {
+            return;
+        }
+
         setImportFeedback(null);
-        fileInputRef.current?.click();
+
+        fileInputRef.current
+            ?.click();
     }
 
+
     function handleImportFileChange(
-        event: React.ChangeEvent<HTMLInputElement>
+        event:
+            React.ChangeEvent<HTMLInputElement>
     ) {
-        const file = event.target.files?.[0];
+        const file =
+            event.target.files?.[0];
 
         if (!file) {
             return;
         }
 
-        const formData = new FormData();
-        formData.append('file', file);
+        const formData =
+            new FormData();
+
+        const importTarget =
+            activeTab === 'product'
+                ? 'produk'
+                : 'customer';
+
+        formData.append(
+            'file',
+            file
+        );
+
         setImportFeedback({
             type: 'info',
-            message: 'Sedang mengimpor data customer...',
+            message:
+                `Sedang mengimpor data ${importTarget}...`,
         });
 
         router.post(
-            route('customers.import'),
+            route(
+                activeTab === 'product'
+                    ? 'products.import'
+                    : 'customers.import'
+            ),
+
             formData,
+
             {
                 forceFormData: true,
+
                 preserveScroll: true,
+
                 onSuccess: () => {
                     setImportFeedback({
                         type: 'success',
-                        message: 'Data customer berhasil diimpor.',
+
+                        message:
+                            `Data ${importTarget} berhasil diimpor.`,
                     });
                 },
-                onError: (errors) => {
-                    const message = errors.file ?? Object.values(errors)[0];
+
+                onError: (
+                    errors
+                ) => {
+                    const message =
+                        errors.file ??
+                        Object.values(
+                            errors
+                        )[0];
+
                     setImportFeedback({
                         type: 'error',
-                        message: String(message ?? 'Import gagal. Periksa file dan coba lagi.'),
+
+                        message: String(
+                            message ??
+                            'Import gagal. Periksa file dan coba lagi.'
+                        ),
                     });
                 },
+
                 onFinish: () => {
-                    if (fileInputRef.current) {
-                        fileInputRef.current.value = '';
+                    if (
+                        fileInputRef.current
+                    ) {
+                        fileInputRef.current.value =
+                            '';
                     }
                 },
             }
         );
     }
+
+
+    /*
+     * ============================
+     * DELETE CUSTOMER
+     * ============================
+     */
 
     function handleCustomerDelete(
         customerId: number
@@ -226,91 +547,197 @@ export default function DatabaseCenter({
         }
 
         router.delete(
-            route('customers.destroy', customerId),
+            route(
+                'customers.destroy',
+                customerId
+            ),
+
             {
                 preserveScroll: true,
+
                 onSuccess: () => {
-                    setCustomerRows((
-                        currentRows
-                    ) =>
-                        currentRows.filter(
-                            (customer) =>
-                                customer.id !==
-                                customerId
-                        )
+                    setCustomerRows(
+                        (
+                            currentRows
+                        ) =>
+                            currentRows.filter(
+                                (
+                                    customer
+                                ) =>
+                                    customer.id !==
+                                    customerId
+                            )
                     );
                 },
             }
         );
     }
 
+
+    /*
+     * ============================
+     * DELETE PRODUCT
+     * ============================
+     */
+
+    function handleProductDelete(
+        productId: number
+    ) {
+        if (
+            !window.confirm(
+                'Hapus product ini?'
+            )
+        ) {
+            return;
+        }
+
+        router.delete(
+            route(
+                'products.destroy',
+                productId
+            ),
+            {
+                preserveScroll: true,
+
+                onError: (
+                    errors
+                ) => {
+                    const message =
+                        errors.product ??
+                        Object.values(
+                            errors
+                        )[0];
+
+                    if (message) {
+                        window.alert(
+                            String(
+                                message
+                            )
+                        );
+                    }
+                },
+            }
+        );
+    }
+
+
     return (
         <>
             <Head title="Database Center" />
 
             <AuthenticatedLayout>
-                <div className="min-h-full bg-[#f6f7f8] py-3 px-4">
+                <div className="min-h-full bg-[#f6f7f8] px-4 py-3">
                     <div className="mx-auto space-y-5">
+
+                        {/* HEADER */}
+
                         <DatabaseHeader
                             activeTab={
                                 activeTab
                             }
+
                             onAdd={
-                                openCreateCustomerModal
+                                openCreateModal
                             }
+
                             onImport={
                                 handleImportClick
                             }
+
                             onDownloadTemplate={
                                 handleDownloadTemplate
                             }
                         />
 
-                        {activeTab === 'customer' && (
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".csv,.xlsx"
-                                className="hidden"
-                                onChange={
-                                    handleImportFileChange
-                                }
-                            />
-                        )}
+
+                        {/* HIDDEN CUSTOMER/PRODUCT IMPORT */}
+
+                        {(activeTab === 'customer' ||
+                            activeTab === 'product') && (
+                                <input
+                                    ref={
+                                        fileInputRef
+                                    }
+
+                                    type="file"
+
+                                    accept=".csv,.xlsx"
+
+                                    className="hidden"
+
+                                    onChange={
+                                        handleImportFileChange
+                                    }
+                                />
+                            )}
+
+
+                        {/* IMPORT FEEDBACK */}
 
                         {importFeedback && (
                             <div
-                                role={importFeedback.type === 'error' ? 'alert' : 'status'}
-                                className={`rounded-lg border px-4 py-3 text-sm ${
-                                    importFeedback.type === 'error'
+                                role={
+                                    importFeedback.type ===
+                                        'error'
+                                        ? 'alert'
+                                        : 'status'
+                                }
+
+                                className={`
+                                    rounded-lg
+                                    border
+                                    px-4
+                                    py-3
+                                    text-sm
+
+                                    ${importFeedback.type ===
+                                        'error'
                                         ? 'border-red-200 bg-red-50 text-red-700'
-                                        : importFeedback.type === 'success'
+                                        : importFeedback.type ===
+                                            'success'
                                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                             : 'border-gray-200 bg-white text-gray-700'
-                                }`}
+                                    }
+                                `}
                             >
-                                {importFeedback.message}
+                                {
+                                    importFeedback.message
+                                }
                             </div>
                         )}
+
+
+                        {/* TABS */}
 
                         <DatabaseTabs
                             activeTab={
                                 activeTab
                             }
+
                             onChange={
                                 changeTab
                             }
                         />
 
+
+                        {/* SEARCH */}
+
                         <DatabaseToolbar
                             activeTab={
                                 activeTab
                             }
-                            search={search}
+
+                            search={
+                                search
+                            }
+
                             setSearch={
                                 setSearch
                             }
                         />
+
+
+                        {/* CUSTOMER */}
 
                         {activeTab ===
                             'customer' && (
@@ -318,14 +745,19 @@ export default function DatabaseCenter({
                                     data={
                                         filteredCustomers
                                     }
+
                                     onEdit={
                                         openEditCustomerModal
                                     }
+
                                     onDelete={
                                         handleCustomerDelete
                                     }
                                 />
                             )}
+
+
+                        {/* PRODUCT */}
 
                         {activeTab ===
                             'product' && (
@@ -333,8 +765,19 @@ export default function DatabaseCenter({
                                     data={
                                         filteredProducts
                                     }
+
+                                    onEdit={
+                                        openEditProductModal
+                                    }
+
+                                    onDelete={
+                                        handleProductDelete
+                                    }
                                 />
                             )}
+
+
+                        {/* COMPETITOR */}
 
                         {activeTab ===
                             'competitor' && (
@@ -347,15 +790,44 @@ export default function DatabaseCenter({
                     </div>
                 </div>
 
+
+                {/* FORM MODAL */}
+
                 <DatabaseFormModal
-                    open={modalOpen}
-                    activeTab={activeTab}
-                    onClose={closeCustomerModal}
+                    open={
+                        modalOpen
+                    }
+
+                    activeTab={
+                        activeTab
+                    }
+
+                    onClose={
+                        closeModal
+                    }
+
                     editingCustomer={
                         editingCustomer
                     }
+
+                    editingProduct={
+                        editingProduct
+                    }
+
                     segmentations={
                         segmentations
+                    }
+
+                    materials={
+                        materials
+                    }
+
+                    products={
+                        products
+                    }
+
+                    grades={
+                        grades
                     }
                 />
             </AuthenticatedLayout>
