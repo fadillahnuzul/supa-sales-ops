@@ -82,11 +82,13 @@ export interface GradeOption {
 
 export interface Competitor {
     id: number;
+    competitor_id: number;
     competitor: string;
-    product: string;
-    qty: number;
-    price: number;
     division: Division;
-    notes: string;
-    recordedAt: string;
+    competitor_note?: string | null;
+    product_id: number;
+    product: string;
+    price: number;
+    date: string;
+    notes?: string | null;
 }

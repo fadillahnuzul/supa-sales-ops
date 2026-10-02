@@ -23,18 +23,12 @@ import CustomerTable from '../Components/DatabaseCenter/CustomerTable';
 import ProductTable from '../Components/DatabaseCenter/ProductTable';
 import CompetitorTable from '../Components/DatabaseCenter/CompetitorTable';
 
-/*
- * Product tidak lagi diambil
- * dari dummy data.
- */
-import {
-    competitors,
-} from '../data/databaseCenter';
 
 import type {
     Customer,
     DatabaseTab,
     Product,
+    Competitor,
 } from '../types/databaseCenter';
 
 
@@ -66,14 +60,13 @@ interface DatabaseCenterProps {
 
     products: Product[];
 
-    segmentations:
-    SegmentationOption[];
+    competitors: Competitor[];
 
-    materials:
-    MaterialOption[];
+    segmentations: SegmentationOption[];
 
-    grades:
-    GradeOption[];
+    materials: MaterialOption[];
+
+    grades: GradeOption[];
 }
 
 
@@ -89,6 +82,7 @@ export default function DatabaseCenter({
     segmentations = [],
     materials = [],
     grades = [],
+    competitors = [],
 }: DatabaseCenterProps) {
     /*
      * ============================
@@ -103,24 +97,10 @@ export default function DatabaseCenter({
         'customer'
     );
 
-
-    /*
-     * ============================
-     * MODAL
-     * ============================
-     */
-
     const [
         modalOpen,
         setModalOpen,
     ] = useState(false);
-
-
-    /*
-     * ============================
-     * EDITING CUSTOMER
-     * ============================
-     */
 
     const [
         editingCustomer,
@@ -129,13 +109,6 @@ export default function DatabaseCenter({
         null
     );
 
-
-    /*
-     * ============================
-     * EDITING PRODUCT
-     * ============================
-     */
-
     const [
         editingProduct,
         setEditingProduct,
@@ -143,24 +116,22 @@ export default function DatabaseCenter({
         null
     );
 
-
-    /*
-     * ============================
-     * SEARCH
-     * ============================
-     */
+    const [
+        editingCompetitor,
+        setEditingCompetitor,
+    ] = useState<Competitor | null>(
+        null
+    );
 
     const [
         search,
         setSearch,
     ] = useState('');
 
-
-    /*
-     * ============================
-     * CUSTOMER LOCAL ROWS
-     * ============================
-     */
+    const [
+        competitorNameFilter,
+        setCompetitorNameFilter,
+    ] = useState('');
 
     const [
         customerRows,
@@ -168,13 +139,6 @@ export default function DatabaseCenter({
     ] = useState<Customer[]>(
         initialCustomers
     );
-
-
-    /*
-     * ============================
-     * IMPORT
-     * ============================
-     */
 
     const fileInputRef =
         useRef<HTMLInputElement | null>(
@@ -195,10 +159,6 @@ export default function DatabaseCenter({
         null
     );
 
-
-    /*
-     * Sync customer props.
-     */
     useEffect(() => {
         setCustomerRows(
             initialCustomers
@@ -206,13 +166,6 @@ export default function DatabaseCenter({
     }, [
         initialCustomers,
     ]);
-
-
-    /*
-     * ============================
-     * FILTER CUSTOMER
-     * ============================
-     */
 
     const filteredCustomers =
         useMemo(() => {
@@ -303,21 +256,42 @@ export default function DatabaseCenter({
 
             return competitors.filter(
                 (competitor) =>
-                    (competitor.competitor ?? '')
+                    (
+                        !competitorNameFilter ||
+                        competitor.competitor ===
+                            competitorNameFilter
+                    ) &&
+                    (
+                        competitor.competitor ??
+                        ''
+                    )
                         .toLowerCase()
-                        .includes(
-                            keyword
-                        ) ||
+                        .includes(keyword) ||
 
-                    (competitor.product ?? '')
+                    (
+                        competitor.product ??
+                        ''
+                    )
                         .toLowerCase()
-                        .includes(
-                            keyword
-                        )
+                        .includes(keyword)
             );
         }, [
+            competitors,
+            competitorNameFilter,
             search,
         ]);
+
+    const competitorNames =
+        useMemo(
+            () => Array.from(
+                new Set(
+                    competitors
+                        .map((competitor) => competitor.competitor)
+                        .filter(Boolean)
+                )
+            ).sort((first, second) => first.localeCompare(second)),
+            [competitors]
+        );
 
 
     /*
@@ -332,43 +306,24 @@ export default function DatabaseCenter({
         setActiveTab(tab);
 
         setSearch('');
-
-        /*
-         * Bersihkan edit state
-         * ketika pindah tab.
-         */
+        setCompetitorNameFilter('');
         setEditingCustomer(null);
-
         setEditingProduct(null);
+        setEditingCompetitor(null);
     }
-
-
-    /*
-     * ============================
-     * CREATE
-     * ============================
-     */
 
     function openCreateModal() {
         setEditingCustomer(null);
-
         setEditingProduct(null);
-
+        setEditingCompetitor(null);
         setModalOpen(true);
     }
-
-
-    /*
-     * ============================
-     * EDIT CUSTOMER
-     * ============================
-     */
 
     function openEditCustomerModal(
         customer: Customer
     ) {
         setEditingProduct(null);
-
+        setEditingCompetitor(null);
         setEditingCustomer(
             customer
         );
@@ -376,17 +331,11 @@ export default function DatabaseCenter({
         setModalOpen(true);
     }
 
-
-    /*
-     * ============================
-     * EDIT PRODUCT
-     * ============================
-     */
-
     function openEditProductModal(
         product: Product
     ) {
         setEditingCustomer(null);
+        setEditingCompetitor(null);
 
         setEditingProduct(
             product
@@ -395,12 +344,18 @@ export default function DatabaseCenter({
         setModalOpen(true);
     }
 
+    function openEditCompetitorModal(
+        competitor: Competitor
+    ) {
+        setEditingCustomer(null);
+        setEditingProduct(null);
 
-    /*
-     * ============================
-     * CLOSE MODAL
-     * ============================
-     */
+        setEditingCompetitor(
+            competitor
+        );
+
+        setModalOpen(true);
+    }
 
     function closeModal() {
         setModalOpen(false);
@@ -408,35 +363,24 @@ export default function DatabaseCenter({
         setEditingCustomer(null);
 
         setEditingProduct(null);
+        setEditingCompetitor(null);
     }
 
 
     function handleDownloadTemplate() {
-        if (
-            activeTab !== 'customer' &&
-            activeTab !== 'product'
-        ) {
-            return;
-        }
-
         window.open(
             route(
                 activeTab === 'product'
                     ? 'products.template'
-                    : 'customers.template'
+                    : activeTab === 'competitor'
+                        ? 'competitors.template'
+                        : 'customers.template'
             ),
             '_blank'
         );
     }
 
     function handleImportClick() {
-        if (
-            activeTab !== 'customer' &&
-            activeTab !== 'product'
-        ) {
-            return;
-        }
-
         setImportFeedback(null);
 
         fileInputRef.current
@@ -461,7 +405,16 @@ export default function DatabaseCenter({
         const importTarget =
             activeTab === 'product'
                 ? 'produk'
-                : 'customer';
+                : activeTab === 'competitor'
+                    ? 'competitor'
+                    : 'customer';
+
+        const importRoute =
+            activeTab === 'product'
+                ? 'products.import'
+                : activeTab === 'competitor'
+                    ? 'competitors.import'
+                    : 'customers.import';
 
         formData.append(
             'file',
@@ -475,11 +428,7 @@ export default function DatabaseCenter({
         });
 
         router.post(
-            route(
-                activeTab === 'product'
-                    ? 'products.import'
-                    : 'customers.import'
-            ),
+            route(importRoute),
 
             formData,
 
@@ -528,13 +477,6 @@ export default function DatabaseCenter({
         );
     }
 
-
-    /*
-     * ============================
-     * DELETE CUSTOMER
-     * ============================
-     */
-
     function handleCustomerDelete(
         customerId: number
     ) {
@@ -572,13 +514,6 @@ export default function DatabaseCenter({
             }
         );
     }
-
-
-    /*
-     * ============================
-     * DELETE PRODUCT
-     * ============================
-     */
 
     function handleProductDelete(
         productId: number
@@ -620,6 +555,37 @@ export default function DatabaseCenter({
         );
     }
 
+    function handleCompetitorProductDelete(
+        competitorProductId: number
+    ) {
+        if (
+            !window.confirm(
+                'Hapus data harga competitor ini?'
+            )
+        ) {
+            return;
+        }
+
+        router.delete(
+            route(
+                'competitors.products.destroy',
+                competitorProductId
+            ),
+            {
+                preserveScroll: true,
+
+                onError: (errors) => {
+                    const message =
+                        Object.values(errors)[0];
+
+                    if (message) {
+                        window.alert(String(message));
+                    }
+                },
+            }
+        );
+    }
+
 
     return (
         <>
@@ -650,10 +616,11 @@ export default function DatabaseCenter({
                         />
 
 
-                        {/* HIDDEN CUSTOMER/PRODUCT IMPORT */}
+                        {/* HIDDEN CUSTOMER/PRODUCT/COMPETITOR IMPORT */}
 
                         {(activeTab === 'customer' ||
-                            activeTab === 'product') && (
+                            activeTab === 'product' ||
+                            activeTab === 'competitor') && (
                                 <input
                                     ref={
                                         fileInputRef
@@ -734,6 +701,18 @@ export default function DatabaseCenter({
                             setSearch={
                                 setSearch
                             }
+
+                            competitorNames={
+                                competitorNames
+                            }
+
+                            competitorNameFilter={
+                                competitorNameFilter
+                            }
+
+                            setCompetitorNameFilter={
+                                setCompetitorNameFilter
+                            }
                         />
 
 
@@ -782,9 +761,9 @@ export default function DatabaseCenter({
                         {activeTab ===
                             'competitor' && (
                                 <CompetitorTable
-                                    data={
-                                        filteredCompetitors
-                                    }
+                                    data={filteredCompetitors}
+                                    onEdit={openEditCompetitorModal}
+                                    onDelete={handleCompetitorProductDelete}
                                 />
                             )}
                     </div>
@@ -794,17 +773,11 @@ export default function DatabaseCenter({
                 {/* FORM MODAL */}
 
                 <DatabaseFormModal
-                    open={
-                        modalOpen
-                    }
+                    open={modalOpen}
 
-                    activeTab={
-                        activeTab
-                    }
+                    activeTab={activeTab}
 
-                    onClose={
-                        closeModal
-                    }
+                    onClose={closeModal}
 
                     editingCustomer={
                         editingCustomer
@@ -812,6 +785,10 @@ export default function DatabaseCenter({
 
                     editingProduct={
                         editingProduct
+                    }
+
+                    editingCompetitor={
+                        editingCompetitor
                     }
 
                     segmentations={

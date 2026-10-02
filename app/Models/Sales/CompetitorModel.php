@@ -2,11 +2,9 @@
 
 namespace App\Models\Sales;
 
-use App\Models\Core\ProductModel;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CompetitorModel extends Model
 {
@@ -22,11 +20,12 @@ class CompetitorModel extends Model
         'note',
     ];
 
-    public function productPrices(): HasMany
+    public function products(): HasMany
     {
         return $this->hasMany(
-            ProductCompetitorModel::class,
-            'competitor_id'
+            CompetitorProductModel::class,
+            'competitor_id',
+            'id'
         );
     }
 
@@ -36,24 +35,5 @@ class CompetitorModel extends Model
             InquiryDetailModel::class,
             'source_ap'
         );
-    }
-
-    public function products(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            ProductModel::class,
-            'sales.product_competitors',
-            'competitor_id',
-            'product_id'
-        )
-        ->withPivot([
-            'id',
-            'price',
-            'date',
-            'note',
-            'created_at',
-            'updated_at',
-            'deleted_at',
-        ]);
     }
 }

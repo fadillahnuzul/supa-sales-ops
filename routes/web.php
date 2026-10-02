@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
@@ -39,7 +40,7 @@ Route::delete(
     '/database-center/customers/{customer}',
     [CustomerController::class, 'destroy']
 )->name('customers.destroy');
-// Product Controller
+// Product Database
 Route::post(
     '/products/import',
     [ProductController::class, 'import']
@@ -62,6 +63,35 @@ Route::delete(
     '/products/{product}',
     [ProductController::class, 'destroy']
 )->name('products.destroy');
+// Competitor Product Database
+Route::prefix('competitors')
+    ->name('competitors.')
+    ->group(function () {
+        Route::post(
+            '/import',
+            [CompetitorController::class, 'import']
+        )->name('import');
+        Route::get(
+            '/template',
+            [CompetitorController::class, 'template']
+        )->name('template');
+        Route::post(
+            '/',
+            [CompetitorController::class, 'store']
+        )->name('store');
+        Route::put(
+            '/products/{competitorProduct}',
+            [CompetitorController::class, 'update']
+        )->name('update');
+        Route::delete(
+            '/products/{competitorProduct}',
+            [CompetitorController::class, 'destroyProduct']
+        )->name('products.destroy');
+        Route::delete(
+            '/{competitor}',
+            [CompetitorController::class, 'destroy']
+        )->name('destroy');
+    });
 
 Route::get('/inquiry', function () {
     return Inertia::render('Inquiry');

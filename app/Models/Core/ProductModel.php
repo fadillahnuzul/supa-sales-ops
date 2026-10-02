@@ -3,8 +3,8 @@
 namespace App\Models\Core;
 
 use App\Models\Sales\CompetitorModel;
+use App\Models\Sales\CompetitorProductModel;
 use App\Models\Sales\InquiryDetailModel;
-use App\Models\Sales\ProductCompetitorModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -49,11 +49,12 @@ class ProductModel extends Model
         );
     }
 
-    public function competitorPrices(): HasMany
+    public function competitorProducts(): HasMany
     {
         return $this->hasMany(
-            ProductCompetitorModel::class,
-            'product_id'
+            CompetitorProductModel::class,
+            'product_id',
+            'id'
         );
     }
 

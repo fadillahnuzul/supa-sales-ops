@@ -38,7 +38,7 @@ const config = {
     competitor: {
         title: 'Database Kompetitor (Pesaing)',
         description:
-            'Data harga pasar kompetitor pembanding. Item produk diambil langsung dari Database Produk.',
+            'Data harga kompetitor. Untuk bulk upload, gunakan satu baris per produk dan isi kode produk.',
         button: 'Tambah Data Competitor',
         icon: Swords,
     },
@@ -83,51 +83,45 @@ export default function DatabaseHeader({
             </div>
 
             <div className="flex items-center gap-2">
-                {(activeTab === 'customer' ||
-                    activeTab === 'product') && (
-                        <button
-                            type="button"
-                            onClick={onDownloadTemplate}
-                            className="
-                                flex h-10 items-center gap-2
-                                rounded-lg
-                                border border-gray-300
-                                bg-white
-                                px-4
-                                text-sm font-semibold
-                                text-gray-700
-                                shadow-sm
-                                hover:bg-gray-50
-                            "
-                        >
-                            <Download size={16} />
+                <button
+                    type="button"
+                    onClick={onDownloadTemplate}
+                    className="
+                        flex h-10 items-center gap-2
+                        rounded-lg
+                        border border-gray-300
+                        bg-white
+                        px-4
+                        text-sm font-semibold
+                        text-gray-700
+                        shadow-sm
+                        hover:bg-gray-50
+                    "
+                >
+                    <Download size={16} />
 
-                            Download Template
-                        </button>
-                    )}
+                    Download Template
+                </button>
 
-                {(activeTab === 'customer' ||
-                    activeTab === 'product') && (
-                    <button
-                        type="button"
-                        onClick={onImport}
-                        className="
-                            flex h-10 items-center gap-2
-                            rounded-lg
-                            border border-[#19875f]/30
-                            bg-[#ecfdf5]
-                            px-4
-                            text-sm font-semibold
-                            text-[#146e4e]
-                            shadow-sm
-                            hover:bg-[#dffaf0]
-                        "
-                    >
-                        <Upload size={16} />
+                <button
+                    type="button"
+                    onClick={onImport}
+                    className="
+                        flex h-10 items-center gap-2
+                        rounded-lg
+                        border border-[#19875f]/30
+                        bg-[#ecfdf5]
+                        px-4
+                        text-sm font-semibold
+                        text-[#146e4e]
+                        shadow-sm
+                        hover:bg-[#dffaf0]
+                    "
+                >
+                    <Upload size={16} />
 
-                        Import Excel
-                    </button>
-                )}
+                    Import Excel
+                </button>
 
                 <button
                     type="button"

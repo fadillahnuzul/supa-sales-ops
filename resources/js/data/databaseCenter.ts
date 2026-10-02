@@ -1,7 +1,6 @@
 import type {
     Customer,
     Product,
-    Competitor,
 } from '../types/databaseCenter';
 
 export const customers: Customer[] = [
@@ -109,49 +108,5 @@ export const products: Product[] = [
         category: 'Pepper',
         price: 115000,
         unit: 'KG',
-    },
-];
-
-export const competitors: Competitor[] = [
-    {
-        id: 1,
-        competitor: 'Cahaya Pelita',
-        product: 'Cayenne Powder',
-        qty: 50,
-        price: 125000,
-        division: 'Industri',
-        notes:
-            'Kompetitor utama area Cikarang dan Jawa Barat',
-        recordedAt: '2026-09-01',
-    },
-    {
-        id: 2,
-        competitor: 'Cahaya Pelita',
-        product: 'Allspice Ground',
-        qty: 100,
-        price: 140000,
-        division: 'Industri',
-        notes: 'Kemas karung 25kg sak',
-        recordedAt: '2026-08-28',
-    },
-    {
-        id: 3,
-        competitor: 'Cahaya Pelita',
-        product: 'Paprika Powder 120 ASTA',
-        qty: 300,
-        price: 108000,
-        division: 'Industri',
-        notes: 'Impor China / Spanyol',
-        recordedAt: '2026-09-03',
-    },
-    {
-        id: 4,
-        competitor: 'Duta Bumbu Sejahtera',
-        product: 'Cinnamon Cassia Vera Powder',
-        qty: 150,
-        price: 88000,
-        division: 'Low Cost',
-        notes: 'Kualitas grade B non-sterilized',
-        recordedAt: '2026-08-25',
     },
 ];

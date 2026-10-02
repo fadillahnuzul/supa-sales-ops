@@ -7,6 +7,7 @@ use App\Models\Core\GradeModel;
 use App\Models\Core\MaterialModel;
 use App\Models\Core\ProductModel;
 use App\Models\Core\SegmentationModel;
+use App\Models\Sales\CompetitorModel;
 use App\Support\SpreadsheetFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,17 +114,51 @@ class CustomerController extends Controller
             ->orderBy('name')
             ->get();
 
+        $competitors = CompetitorModel::query()
+            ->with([
+                'products.product',
+            ])
+            ->orderBy('name')
+            ->get()
+            ->flatMap(function ($competitor) {
+                return $competitor->products->map(
+                    function ($competitorProduct) use ($competitor) {
+                        return [
+                            'id' => $competitorProduct->id,
+
+                            'competitor_id' => $competitor->id,
+
+                            'competitor' => $competitor->name,
+
+                            'division' => $competitor->divisi,
+
+                            'competitor_note' => $competitor->note,
+
+                            'product_id' => $competitorProduct->product_id,
+
+                            'product' => $competitorProduct->product?->name,
+
+                            'price' => (float) $competitorProduct->price,
+
+                            'date' => $competitorProduct->date?->format('Y-m-d'),
+
+                            'notes' => $competitorProduct->note,
+                        ];
+                    }
+                );
+            })
+            ->values();
+
         return Inertia::render(
             'DatabaseCenter',
             [
+
                 'customers' => $customers,
+                'products' => $products,
+                'competitors' => $competitors,
 
                 'segmentations' => $segmentations,
-
-                'products' => $products,
-
                 'materials' => $materials,
-
                 'grades' => $grades,
             ]
         );

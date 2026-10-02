@@ -11,12 +11,18 @@ interface Props {
     activeTab: DatabaseTab;
     search: string;
     setSearch: (value: string) => void;
+    competitorNames: string[];
+    competitorNameFilter: string;
+    setCompetitorNameFilter: (value: string) => void;
 }
 
 export default function DatabaseToolbar({
     activeTab,
     search,
     setSearch,
+    competitorNames,
+    competitorNameFilter,
+    setCompetitorNameFilter,
 }: Props) {
     function getPlaceholder() {
         switch (activeTab) {
@@ -80,6 +86,19 @@ export default function DatabaseToolbar({
                 </div>
 
                 <select
+                    key={activeTab}
+                    value={
+                        activeTab === 'competitor'
+                            ? competitorNameFilter
+                            : undefined
+                    }
+                    onChange={(event) => {
+                        if (activeTab === 'competitor') {
+                            setCompetitorNameFilter(
+                                event.target.value
+                            );
+                        }
+                    }}
                     className="
                         h-11 rounded-lg
                         border border-gray-300
@@ -133,17 +152,20 @@ export default function DatabaseToolbar({
                     {activeTab ===
                         'competitor' && (
                         <>
-                            <option>
+                            <option value="">
                                 Semua Nama Competitor
                             </option>
 
-                            <option>
-                                Cahaya Pelita
-                            </option>
-
-                            <option>
-                                Duta Bumbu Sejahtera
-                            </option>
+                            {competitorNames.map(
+                                (name) => (
+                                    <option
+                                        key={name}
+                                        value={name}
+                                    >
+                                        {name}
+                                    </option>
+                                )
+                            )}
                         </>
                     )}
                 </select>

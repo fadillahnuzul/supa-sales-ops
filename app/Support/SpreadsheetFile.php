@@ -95,9 +95,30 @@ XML);
             return [];
         }
 
+        $firstLine = fgets($handle);
+
+        if ($firstLine === false) {
+            fclose($handle);
+
+            return [];
+        }
+
+        $delimiter = ',';
+        $columnCount = 0;
+
+        foreach ([',', ';', "\t"] as $candidate) {
+            $columns = str_getcsv($firstLine, $candidate, '"', '');
+
+            if (count($columns) > $columnCount) {
+                $delimiter = $candidate;
+                $columnCount = count($columns);
+            }
+        }
+
+        rewind($handle);
         $rows = [];
 
-        while (($row = fgetcsv($handle, escape: '')) !== false) {
+        while (($row = fgetcsv($handle, separator: $delimiter, escape: '')) !== false) {
             $rows[] = $row;
         }
 

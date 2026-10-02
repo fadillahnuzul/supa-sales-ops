@@ -128,10 +128,6 @@ class ProductController extends Controller
             function () use (
                 $product
             ) {
-                /*
-                 * Sebenarnya cascade FK juga
-                 * akan menghapusnya.
-                 */
                 $product
                     ->materials()
                     ->delete();
@@ -543,10 +539,6 @@ class ProductController extends Controller
                 ),
             ],
 
-            /*
-             * Product bisa punya
-             * banyak material.
-             */
             'materials' => [
                 'nullable',
                 'array',

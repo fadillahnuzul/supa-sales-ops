@@ -14,6 +14,7 @@ import type {
     RiskLevel,
     Sterilization,
     Product,
+    Competitor
 } from '../../types/databaseCenter';
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
 
     editingCustomer?: Customer | null;
     editingProduct?: Product | null;
+    editingCompetitor?: Competitor | null;
 
     segmentations?: SegmentationOption[];
 
@@ -57,6 +59,7 @@ export default function DatabaseFormModal({
 
     editingCustomer = null,
     editingProduct = null,
+    editingCompetitor = null,
 
     segmentations = [],
     materials = [],
@@ -82,14 +85,20 @@ export default function DatabaseFormModal({
         gradeId: '',
     });
 
-    const [competitorForm, setCompetitorForm] = useState({
+    const [
+        competitorForm,
+        setCompetitorForm,
+    ] = useState({
         competitor: '',
-        product: '',
-        qty: '',
+        productId: '',
         price: '',
-        division: 'Industri' as Division,
-        notes: '',
-        recordedAt: new Date().toISOString().slice(0, 10),
+        date: new Date()
+            .toISOString()
+            .slice(0, 10),
+        division:
+            'Industri' as Division,
+        competitorNote: '',
+        productNote: '',
     });
 
     // Close modal with Escape
@@ -226,6 +235,69 @@ export default function DatabaseFormModal({
         open,
         activeTab,
         editingProduct,
+    ]);
+
+    //Edit competitor
+    useEffect(() => {
+        if (
+            !open ||
+            activeTab !== 'competitor'
+        ) {
+            return;
+        }
+
+        if (editingCompetitor) {
+            setCompetitorForm({
+                competitor:
+                    editingCompetitor.competitor ??
+                    '',
+
+                productId:
+                    String(
+                        editingCompetitor.product_id
+                    ),
+
+                price:
+                    String(
+                        editingCompetitor.price ??
+                        ''
+                    ),
+
+                division:
+                    editingCompetitor.division,
+
+                competitorNote:
+                    editingCompetitor.competitor_note ??
+                    '',
+
+                productNote:
+                    editingCompetitor.notes ??
+                    '',
+                date:
+                    editingCompetitor.date ??
+                    new Date()
+                        .toISOString()
+                        .slice(0, 10),
+            });
+
+            return;
+        }
+
+        setCompetitorForm({
+            competitor: '',
+            productId: '',
+            price: '',
+            division: 'Industri',
+            competitorNote: '',
+            productNote: '',
+            date: new Date()
+                .toISOString()
+                .slice(0, 10),
+        });
+    }, [
+        open,
+        activeTab,
+        editingCompetitor,
     ]);
 
     if (!open) {
@@ -395,7 +467,89 @@ export default function DatabaseFormModal({
         }
 
         if (activeTab === 'competitor') {
-            console.log('Competitor:', competitorForm);
+            const payload = {
+                name: competitorForm.competitor,
+
+                divisi: competitorForm.division,
+
+                note:
+                    competitorForm.competitorNote ||
+                    null,
+
+                product_id: Number(
+                    competitorForm.productId
+                ),
+
+                price: Number(
+                    competitorForm.price
+                ),
+
+                date: competitorForm.date,
+
+                product_note:
+                    competitorForm.productNote ||
+                    null,
+            };
+
+            /*
+             * ============================
+             * UPDATE COMPETITOR
+             * ============================
+             */
+            if (editingCompetitor) {
+                router.put(
+                    route(
+                        'competitors.update',
+                        editingCompetitor.id
+                    ),
+
+                    payload,
+
+                    {
+                        preserveScroll: true,
+
+                        onSuccess: () => {
+                            onClose();
+                        },
+
+                        onError: (errors) => {
+                            const message =
+                                errors.product_id ??
+                                errors.name ??
+                                Object.values(errors)[0];
+
+                            if (message) {
+                                window.alert(String(message));
+                            }
+                        },
+                    }
+                );
+
+                return;
+            }
+
+            router.post(
+                route(
+                    'competitors.store'
+                ),
+                payload,
+                {
+                    preserveScroll: true,
+
+                    onSuccess: () => {
+                        onClose();
+                    },
+
+                    onError: (errors) => {
+                        console.error(
+                            'Create competitor error:',
+                            errors
+                        );
+                    },
+                }
+            );
+
+            return;
         }
 
         onClose();
@@ -410,7 +564,9 @@ export default function DatabaseFormModal({
                 ? editingProduct
                     ? 'Edit Produk'
                     : 'Tambah Produk'
-                : 'Tambah Data Kompetitor';
+                : editingCompetitor
+                    ? 'Edit Kompetitor'
+                    : 'Tambah Kompetitor';
 
     return (
         <div
@@ -908,142 +1064,197 @@ export default function DatabaseFormModal({
                             </>
                         )}
 
-                        {activeTab === 'competitor' && (
-                            <>
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Nama Kompetitor">
-                                        <input
-                                            required
+                        {activeTab ===
+                            'competitor' && (
+                                <>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <Field label="Nama Kompetitor">
+                                            <input
+                                                required
+                                                value={
+                                                    competitorForm.competitor
+                                                }
+                                                onChange={(e) =>
+                                                    setCompetitorForm({
+                                                        ...competitorForm,
+                                                        competitor:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                className={
+                                                    inputClass
+                                                }
+                                                placeholder="Contoh: Cahaya Pelita"
+                                            />
+                                        </Field>
+
+                                        <Field label="Divisi">
+                                            <select
+                                                required
+                                                value={
+                                                    competitorForm.division
+                                                }
+                                                onChange={(e) =>
+                                                    setCompetitorForm({
+                                                        ...competitorForm,
+                                                        division:
+                                                            e.target
+                                                                .value as Division,
+                                                    })
+                                                }
+                                                className={
+                                                    inputClass
+                                                }
+                                            >
+                                                <option value="Industri">
+                                                    Industri
+                                                </option>
+
+                                                <option value="SME">
+                                                    SME
+                                                </option>
+
+                                                <option value="Low Cost">
+                                                    Low Cost
+                                                </option>
+
+                                                <option value="All">
+                                                    All
+                                                </option>
+                                            </select>
+                                        </Field>
+                                    </div>
+
+                                    <Field label="Keterangan Kompetitor">
+                                        <textarea
+                                            rows={3}
                                             value={
-                                                competitorForm.competitor
+                                                competitorForm.competitorNote
                                             }
                                             onChange={(e) =>
                                                 setCompetitorForm({
                                                     ...competitorForm,
-                                                    competitor:
+                                                    competitorNote:
                                                         e.target.value,
                                                 })
                                             }
-                                            className={inputClass}
-                                            placeholder="Contoh: Cahaya Pelita"
+                                            className={
+                                                inputClass
+                                            }
+                                            placeholder="Contoh: Competitor utama area Cikarang dan Jawa Barat"
                                         />
                                     </Field>
 
-                                    <Field label="Produk">
-                                        <input
-                                            required
-                                            value={competitorForm.product}
-                                            onChange={(e) =>
-                                                setCompetitorForm({
-                                                    ...competitorForm,
-                                                    product: e.target.value,
-                                                })
-                                            }
-                                            className={inputClass}
-                                            placeholder="Pilih produk"
-                                        />
-                                    </Field>
-                                </div>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <Field label="Produk">
+                                            <select
+                                                required
+                                                value={
+                                                    competitorForm.productId
+                                                }
+                                                onChange={(e) =>
+                                                    setCompetitorForm({
+                                                        ...competitorForm,
+                                                        productId:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                className={
+                                                    inputClass
+                                                }
+                                            >
+                                                <option
+                                                    value=""
+                                                    disabled
+                                                >
+                                                    Pilih produk
+                                                </option>
 
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Qty (KG)">
-                                        <input
-                                            required
-                                            type="number"
-                                            min="0"
-                                            value={competitorForm.qty}
-                                            onChange={(e) =>
-                                                setCompetitorForm({
-                                                    ...competitorForm,
-                                                    qty: e.target.value,
-                                                })
-                                            }
-                                            className={inputClass}
-                                            placeholder="100"
-                                        />
-                                    </Field>
+                                                {products.map(
+                                                    (
+                                                        product
+                                                    ) => (
+                                                        <option
+                                                            key={
+                                                                product.id
+                                                            }
+                                                            value={
+                                                                product.id
+                                                            }
+                                                        >
+                                                            {
+                                                                product.name
+                                                            }
 
-                                    <Field label="Harga Kompetitor">
-                                        <input
-                                            required
-                                            type="number"
-                                            min="0"
-                                            value={competitorForm.price}
-                                            onChange={(e) =>
-                                                setCompetitorForm({
-                                                    ...competitorForm,
-                                                    price: e.target.value,
-                                                })
-                                            }
-                                            className={inputClass}
-                                            placeholder="125000"
-                                        />
-                                    </Field>
-                                </div>
+                                                            {product.code
+                                                                ? ` - ${product.code}`
+                                                                : ''}
+                                                        </option>
+                                                    )
+                                                )}
+                                            </select>
+                                        </Field>
 
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Divisi">
-                                        <select
-                                            value={
-                                                competitorForm.division
-                                            }
-                                            onChange={(e) =>
-                                                setCompetitorForm({
-                                                    ...competitorForm,
-                                                    division: e.target
-                                                        .value as Division,
-                                                })
-                                            }
-                                            className={inputClass}
-                                        >
-                                            <option value="Industri">
-                                                Industri
-                                            </option>
-                                            <option value="SME">SME</option>
-                                            <option value="Low Cost">
-                                                Low Cost
-                                            </option>
-                                            <option value="All">
-                                                All
-                                            </option>
-                                        </select>
-                                    </Field>
+                                        <Field label="Harga Kompetitor">
+                                            <input
+                                                required
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                    competitorForm.price
+                                                }
+                                                onChange={(e) =>
+                                                    setCompetitorForm({
+                                                        ...competitorForm,
+                                                        price:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                className={
+                                                    inputClass
+                                                }
+                                                placeholder="125000"
+                                            />
+                                        </Field>
+                                    </div>
 
-                                    <Field label="Tanggal Pencatatan">
+                                    <Field label="Tanggal Harga">
                                         <input
                                             required
                                             type="date"
-                                            value={
-                                                competitorForm.recordedAt
-                                            }
+                                            value={competitorForm.date}
                                             onChange={(e) =>
                                                 setCompetitorForm({
                                                     ...competitorForm,
-                                                    recordedAt:
-                                                        e.target.value,
+                                                    date: e.target.value,
                                                 })
                                             }
                                             className={inputClass}
                                         />
                                     </Field>
-                                </div>
 
-                                <Field label="Keterangan">
-                                    <textarea
-                                        rows={3}
-                                        value={competitorForm.notes}
-                                        onChange={(e) =>
-                                            setCompetitorForm({
-                                                ...competitorForm,
-                                                notes: e.target.value,
-                                            })
-                                        }
-                                        className={inputClass}
-                                        placeholder="Keterangan harga / kondisi pasar..."
-                                    />
-                                </Field>
-                            </>
-                        )}
+                                    <Field label="Keterangan Harga / Produk">
+                                        <textarea
+                                            rows={3}
+                                            value={
+                                                competitorForm.productNote
+                                            }
+                                            onChange={(e) =>
+                                                setCompetitorForm({
+                                                    ...competitorForm,
+                                                    productNote:
+                                                        e.target.value,
+                                                })
+                                            }
+                                            className={
+                                                inputClass
+                                            }
+                                            placeholder="Contoh: Harga untuk MOQ tertentu"
+                                        />
+                                    </Field>
+                                </>
+                            )}
                     </div>
 
                     {/* Footer */}
