@@ -356,7 +356,7 @@ class CustomerController extends Controller
                 ]),
             ],
             'divisi' => [
-                'required_without:division',
+                'required_without:divisi',
                 'nullable',
                 Rule::in([
                     'Industri',

@@ -3,6 +3,8 @@
 use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\InquiryController;
+use App\Http\Controllers\InquiryDetailController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -93,9 +95,35 @@ Route::prefix('competitors')
         )->name('destroy');
     });
 
-Route::get('/inquiry', function () {
-    return Inertia::render('Inquiry');
-})->name('inquiry');
+//Inquiry Menu
+Route::get(
+    '/inquiry',
+    [InquiryController::class, 'index']
+)->name('inquiry');
+Route::post(
+    '/inquiry',
+    [InquiryController::class, 'store']
+)->name('inquiry.store');
+Route::put(
+    '/inquiry/{inquiry}',
+    [InquiryController::class, 'update']
+)->name('inquiry.update');
+Route::delete(
+    '/inquiry/{inquiry}',
+    [InquiryController::class, 'destroy']
+)->name('inquiry.destroy');
+Route::post(
+    '/inquiry/{inquiry}/detail',
+    [InquiryDetailController::class, 'store']
+)->name('inquiry-detail.store');
+Route::put(
+    '/inquiry/detail/{detail}',
+    [InquiryDetailController::class, 'update']
+)->name('inquiry-detail.update');
+Route::delete(
+    '/inquiry/detail/{detail}',
+    [InquiryDetailController::class, 'destroy']
+)->name('inquiry-detail.destroy');
 // Route::middleware('auth')->group(function () {
 //     Route::get('/dashboard', function () {
 //         return Inertia::render('Dashboard');
