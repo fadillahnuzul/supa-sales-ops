@@ -138,7 +138,7 @@ export default function InquiryPrintTable({
                                     <td className="p-3">
 
                                         {
-                                            item.pic
+                                            item.pic_first_name
                                             ?? "-"
                                         }
 

@@ -8,8 +8,12 @@ export type InquiryPrintListItem = {
     id: number;
     code: string;
     date: string;
-    pic?: string;
-    customer_name?: string;
+
+    pic_id: number | null;
+    pic_name: string | null;
+    pic_first_name: string | null;
+
+    customer_name: string | null;
     total_items: number;
 };
 
@@ -260,6 +264,7 @@ export async function downloadInquiryPdf(
         `QUOTATION_${id}.pdf`
     );
 }
+
 
 function downloadBlob(
     data: Blob,

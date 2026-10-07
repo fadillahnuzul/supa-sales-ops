@@ -41,8 +41,16 @@ import type {
     SalesSignature,
 } from './../Services/InquiryPrintApi';
 
+interface PicOption {
+    id: number;
+    name: string;
+}
 
-export default function InquiryPrintCenter() {
+interface Props {
+    pics: PicOption[];
+}
+
+export default function InquiryPrintCenter({ pics }: Props) {
     const now = new Date();
 
     /*
@@ -122,6 +130,50 @@ export default function InquiryPrintCenter() {
         useState<
             SalesSignature[]
         >([]);
+
+    useEffect(() => {
+        if (!selectedInquiryId) {
+            setSignatureId('');
+            return;
+        }
+
+        const selectedInquiry =
+            inquiries.find(
+                (inquiry) =>
+                    inquiry.id === selectedInquiryId
+            );
+
+        if (
+            !selectedInquiry
+            ||
+            !selectedInquiry.pic_id
+        ) {
+            setSignatureId('');
+            return;
+        }
+
+        const matchedSignature =
+            signatures.find(
+                (signature) =>
+                    Number(signature.user_id)
+                    ===
+                    Number(selectedInquiry.pic_id)
+            );
+
+        if (matchedSignature) {
+            setSignatureId(
+                String(
+                    matchedSignature.id
+                )
+            );
+        } else {
+            setSignatureId('');
+        }
+    }, [
+        selectedInquiryId,
+        inquiries,
+        signatures,
+    ]);
 
     const [
         templateId,
@@ -1677,8 +1729,7 @@ export default function InquiryPrintCenter() {
 
 
                             <div className="
-                                space-y-4
-                                p-6
+                                p-3
                             ">
                                 <div>
                                     <label className="
@@ -1686,79 +1737,60 @@ export default function InquiryPrintCenter() {
                                         font-medium
                                         text-gray-700
                                     ">
-                                        Employee / User ID
+                                        Nama Sales
                                     </label>
 
-                                    <input
-                                        type="number"
+                                    <select
+                                        value={signatureUserId}
+                                        onChange={(event) => {
+                                            const value =
+                                                event.target.value;
 
-                                        value={
-                                            signatureUserId
-                                        }
-
-                                        onChange={(
-                                            event
-                                        ) =>
                                             setSignatureUserId(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                        }
+                                                value
+                                            );
 
-                                        placeholder="Optional"
+                                            const selectedPic =
+                                                pics.find(
+                                                    (pic) =>
+                                                        pic.id ===
+                                                        Number(value)
+                                                );
 
-                                        className="
-                                            mt-1.5
-                                            h-11
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-3
-                                            text-sm
-                                        "
-                                    />
-                                </div>
-
-
-                                <div>
-                                    <label className="
-                                        text-sm
-                                        font-medium
-                                        text-gray-700
-                                    ">
-                                        Sales Name
-                                    </label>
-
-                                    <input
-                                        value={
-                                            signatureName
-                                        }
-
-                                        onChange={(
-                                            event
-                                        ) =>
                                             setSignatureName(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                        }
-
-                                        placeholder="Made Witrianti"
-
+                                                selectedPic?.name
+                                                ?? ''
+                                            );
+                                        }}
                                         className="
-                                            mt-1.5
-                                            h-11
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-3
-                                            text-sm
-                                        "
-                                    />
+        mt-1.5
+        h-11
+        w-full
+        rounded-lg
+        border
+        border-gray-300
+        bg-white
+        px-3
+        text-sm
+        outline-none
+        focus:border-[#19875f]
+        focus:ring-2
+        focus:ring-[#19875f]/10
+    "
+                                    >
+                                        <option value="">
+                                            Pilih PIC Sales
+                                        </option>
+
+                                        {pics.map((pic) => (
+                                            <option
+                                                key={pic.id}
+                                                value={pic.id}
+                                            >
+                                                {pic.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
 
 

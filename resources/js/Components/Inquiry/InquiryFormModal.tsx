@@ -59,27 +59,18 @@ const inputClass = `
 
 const initialForm: InquiryFormState = {
     code: '',
-
     date: '',
-
     etd: '',
-
     pic: '',
-
     customerId: '',
-
     shippingRate: '',
-
     note: '',
 };
 
 export default function InquiryFormModal({
     open,
-
     customers,
-
     pics,
-
     onClose,
 }: Props) {
     const [

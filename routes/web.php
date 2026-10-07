@@ -5,6 +5,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InquiryDetailController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\InquiryPrintController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -126,9 +127,9 @@ Route::delete(
 )->name('inquiry-detail.destroy');
 
 // Menu Print
-Route::get('/inquiry-print', function () {
-    return Inertia::render('InquiryPrintCenter');
-})->name('inquiry-print');
+Route::get(
+    '/inquiry-print', [InquiryPrintController::class, 'page']
+)->name('inquiry-print');
 
 // Route::middleware('auth')->group(function () {
 //     Route::get('/dashboard', function () {

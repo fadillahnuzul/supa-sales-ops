@@ -756,7 +756,7 @@ export default function InquiryDetailTable({
                     overflow-x-auto
                     rounded-xl
                     border
-                    border-gray-200
+                    border-gray-100
                     bg-white
                 "
             >
@@ -764,11 +764,10 @@ export default function InquiryDetailTable({
                     className="
                         w-full
                         min-w-[3100px]
-                        border-collapse
                         text-xs
                     "
                 >
-                    <thead className="sticky top-0 z-10 bg-gray-50">
+                    <thead className="sticky top-0 z-10 bg-gray-10">
                         <tr>
                             <HeaderCell>
                                 No

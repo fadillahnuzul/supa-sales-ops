@@ -14,14 +14,56 @@ use PhpOffice\PhpWord\TemplateProcessor;
 use Symfony\Component\Process\Exception\ProcessStartFailedException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
+use Inertia\Inertia;
 
 class InquiryPrintController extends Controller
 {
+    public function page()
+    {
+        $pics = DB::table('core.employees as e')
+            ->join(
+                'core.employee_positions as ep',
+                'ep.employee_id',
+                '=',
+                'e.id'
+            )
+            ->join(
+                'core.positions as p',
+                'p.id',
+                '=',
+                'ep.position_id'
+            )
+            ->where(
+                'p.division_id',
+                2
+            )
+            ->select([
+                'e.id',
+                DB::raw("
+                CONCAT(
+                    e.first_name,
+                    ' ',
+                    e.last_name
+                ) as name
+            "),
+            ])
+            ->distinct()
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render(
+            'InquiryPrintCenter',
+            [
+                'pics' => $pics,
+            ]
+        );
+    }
+
     protected InquiryPrintService $printService;
 
     public function __construct(
         InquiryPrintService $printService
-    ) { 
+    ) {
         $this->printService = $printService;
     }
 
@@ -43,17 +85,38 @@ class InquiryPrintController extends Controller
                 'i.id'
             )
 
+            ->leftJoin(
+                'core.employees as e',
+                'e.id',
+                '=',
+                'i.pic'
+            )
+
             ->select([
                 'i.id',
                 'i.code',
                 'i.date',
-                'i.pic',
+                'i.pic as pic_id',
+                'e.first_name as pic_first_name',
 
                 'c.name as customer_name',
 
                 DB::raw(
                     'COUNT(d.id) as total_items'
                 ),
+
+                DB::raw("
+            CASE
+                WHEN e.id IS NULL THEN NULL
+                ELSE TRIM(
+                    CONCAT(
+                        COALESCE(e.first_name, ''),
+                        ' ',
+                        COALESCE(e.last_name, '')
+                    )
+                )
+            END as pic_name
+        "),
             ])
 
             ->groupBy(
@@ -61,7 +124,10 @@ class InquiryPrintController extends Controller
                 'i.code',
                 'i.date',
                 'i.pic',
-                'c.name'
+                'c.name',
+                'e.id',
+                'e.first_name',
+                'e.last_name'
             );
 
         if ($request->filled('year')) {
@@ -87,8 +153,11 @@ class InquiryPrintController extends Controller
 
         if ($request->filled('search')) {
 
-            $search = '%'.
-                strtolower($request->search).
+            $search =
+                '%' .
+                strtolower(
+                    $request->search
+                ) .
                 '%';
 
             $query->where(function ($q) use ($search) {
@@ -104,7 +173,15 @@ class InquiryPrintController extends Controller
                 );
 
                 $q->orWhereRaw(
-                    'LOWER(i.pic) LIKE ?',
+                    "
+            LOWER(
+                CONCAT(
+                    COALESCE(e.first_name, ''),
+                    ' ',
+                    COALESCE(e.last_name, '')
+                )
+            ) LIKE ?
+            ",
                     [$search]
                 );
             });
@@ -248,16 +325,16 @@ class InquiryPrintController extends Controller
         );
 
         $fileName =
-            'INQUIRY_FORM_'.
+            'INQUIRY_FORM_' .
             preg_replace(
                 '/[^A-Za-z0-9_-]/',
                 '_',
                 $inquiry->code
-            ).
+            ) .
             '.xlsx';
 
         $tempPath = storage_path(
-            'app/temp/'.$fileName
+            'app/temp/' . $fileName
         );
 
         if (! is_dir(dirname($tempPath))) {
@@ -313,7 +390,7 @@ class InquiryPrintController extends Controller
 
         $data =
             $this->printService
-                ->getFullInquiry($id);
+            ->getFullInquiry($id);
 
         $inquiry =
             $data['inquiry'];
@@ -334,9 +411,9 @@ class InquiryPrintController extends Controller
 
         $templatePath =
             Storage::disk('local')
-                ->path(
-                    $template->file_path
-                );
+            ->path(
+                $template->file_path
+            );
 
         if (! file_exists($templatePath)) {
             abort(
@@ -418,9 +495,9 @@ class InquiryPrintController extends Controller
 
                 $signaturePath =
                     Storage::disk('local')
-                        ->path(
-                            $signature->signature_path
-                        );
+                    ->path(
+                        $signature->signature_path
+                    );
 
                 if (
                     file_exists(
@@ -491,8 +568,8 @@ class InquiryPrintController extends Controller
             );
 
         $fileName =
-            'QUOTATION_'.
-            $safeCode.
+            'QUOTATION_' .
+            $safeCode .
             '.docx';
 
         $tempDir =
@@ -509,8 +586,8 @@ class InquiryPrintController extends Controller
         }
 
         $outputPath =
-            $tempDir.
-            DIRECTORY_SEPARATOR.
+            $tempDir .
+            DIRECTORY_SEPARATOR .
             $fileName;
 
         $processor
@@ -540,7 +617,7 @@ class InquiryPrintController extends Controller
 
         $data =
             $this->printService
-                ->getFullInquiry($id);
+            ->getFullInquiry($id);
 
         $inquiry =
             $data['inquiry'];
@@ -555,9 +632,9 @@ class InquiryPrintController extends Controller
 
         $templatePath =
             Storage::disk('local')
-                ->path(
-                    $template->file_path
-                );
+            ->path(
+                $template->file_path
+            );
 
         $processor =
             new TemplateProcessor(
@@ -624,7 +701,7 @@ class InquiryPrintController extends Controller
 
             $path =
                 storage_path(
-                    'app/'.
+                    'app/' .
                         $signature->signature_path
                 );
 
@@ -668,15 +745,15 @@ class InquiryPrintController extends Controller
         }
 
         $fileBase =
-            'QUOTATION_'.
-            $id.
-            '_'.
+            'QUOTATION_' .
+            $id .
+            '_' .
             time();
 
         $docxPath =
-            $tempDir.
-            '/'.
-            $fileBase.
+            $tempDir .
+            '/' .
+            $fileBase .
             '.docx';
 
         $processor->saveAs(
@@ -737,9 +814,9 @@ class InquiryPrintController extends Controller
         }
 
         $pdfPath =
-            $tempDir.
-            '/'.
-            $fileBase.
+            $tempDir .
+            '/' .
+            $fileBase .
             '.pdf';
 
         if (! file_exists($pdfPath)) {
@@ -759,7 +836,7 @@ class InquiryPrintController extends Controller
         return response()
             ->download(
                 $pdfPath,
-                $fileBase.'.pdf'
+                $fileBase . '.pdf'
             )
             ->deleteFileAfterSend(true);
     }
