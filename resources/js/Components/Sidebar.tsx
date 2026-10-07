@@ -58,9 +58,12 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         },
         {
             label: 'Print',
-            href: '#',
+            href: route('inquiry-print'),
             icon: Printer,
-            active: false,
+            active:
+                route().current(
+                    'inquiry-print'
+                ) === true,
         },
         {
             label: 'Profil & Roles',

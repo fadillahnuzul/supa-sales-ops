@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'libreoffice' => [
+        'binary' => env(
+            'LIBREOFFICE_BINARY',
+            PHP_OS_FAMILY === 'Windows'
+                ? 'C:\\Program Files\\LibreOffice\\program\\soffice.exe'
+                : 'libreoffice'
+        ),
+    ],
+
 ];

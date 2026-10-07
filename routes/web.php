@@ -2,9 +2,9 @@
 
 use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InquiryDetailController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -95,7 +95,7 @@ Route::prefix('competitors')
         )->name('destroy');
     });
 
-//Inquiry Menu
+// Inquiry Menu
 Route::get(
     '/inquiry',
     [InquiryController::class, 'index']
@@ -124,6 +124,12 @@ Route::delete(
     '/inquiry/detail/{detail}',
     [InquiryDetailController::class, 'destroy']
 )->name('inquiry-detail.destroy');
+
+// Menu Print
+Route::get('/inquiry-print', function () {
+    return Inertia::render('InquiryPrintCenter');
+})->name('inquiry-print');
+
 // Route::middleware('auth')->group(function () {
 //     Route::get('/dashboard', function () {
 //         return Inertia::render('Dashboard');
