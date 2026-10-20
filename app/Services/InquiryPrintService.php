@@ -15,20 +15,39 @@ class InquiryPrintService
                 '=',
                 'i.customer_id'
             )
+            ->leftJoin(
+                'core.employees as e',
+                'e.id',
+                '=',
+                'i.pic'
+            )
+
             ->select([
                 'i.id',
                 'i.code',
                 'i.date',
+                'i.etd',
                 'i.customer_id',
                 'i.pic',
                 'i.shipping_rate',
+                'i.note',
+                DB::raw("
+                    TRIM(
+                        CONCAT(
+                            COALESCE(e.first_name, ''),
+                            ' ',
+                            COALESCE(e.last_name, '')
+                        )
+                    ) as pic_name
+                "),
 
                 'c.name as customer_name',
                 'c.address as customer_address',
                 'c.pic as customer_pic',
                 'c.phone as customer_phone',
                 'c.divisi as segmentation',
-                'c.level',
+                'c.level as level',
+                'c.sterilization as sterilization',
             ])
             ->where('i.id', $id)
             ->first();

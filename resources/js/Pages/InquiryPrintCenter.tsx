@@ -131,7 +131,29 @@ export default function InquiryPrintCenter({ pics }: Props) {
             SalesSignature[]
         >([]);
 
+    const [
+        printConfigError,
+        setPrintConfigError,
+    ] =
+        useState('');
+
+    const [
+        signatureId,
+        setSignatureId,
+    ] =
+        useState('');
+
+    const [
+        signatureSelectionLocked,
+        setSignatureSelectionLocked,
+    ] =
+        useState(false);
+
     useEffect(() => {
+        if (signatureSelectionLocked) {
+            return;
+        }
+
         if (!selectedInquiryId) {
             setSignatureId('');
             return;
@@ -173,6 +195,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
         selectedInquiryId,
         inquiries,
         signatures,
+        signatureSelectionLocked,
     ]);
 
     const [
@@ -180,13 +203,6 @@ export default function InquiryPrintCenter({ pics }: Props) {
         setTemplateId,
     ] =
         useState('');
-
-    const [
-        signatureId,
-        setSignatureId,
-    ] =
-        useState('');
-
 
     /*
     |--------------------------------------------------------------------------
@@ -226,6 +242,20 @@ export default function InquiryPrintCenter({ pics }: Props) {
     const [
         signatureModal,
         setSignatureModal,
+    ] =
+        useState(false);
+
+    const [
+        assetList,
+        setAssetList,
+    ] =
+        useState<
+            'templates' | 'signatures' | null
+        >(null);
+
+    const [
+        pdfDownloading,
+        setPdfDownloading,
     ] =
         useState(false);
 
@@ -365,7 +395,9 @@ export default function InquiryPrintCenter({ pics }: Props) {
     |--------------------------------------------------------------------------
     */
 
-    async function loadPrintConfig() {
+    async function loadPrintConfig(
+        preferredTemplateId?: number
+    ) {
         try {
             const [
                 templateData,
@@ -383,6 +415,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
             setSignatures(
                 signatureData
             );
+            setPrintConfigError('');
 
             const defaultTemplate =
                 templateData.find(
@@ -393,18 +426,34 @@ export default function InquiryPrintCenter({ pics }: Props) {
                         item.is_default
                 );
 
-            if (
-                defaultTemplate
-            ) {
+            const preferredTemplate =
+                templateData.find(
+                    (item) =>
+                        item.id === preferredTemplateId
+                );
+
+            const selectedTemplate =
+                preferredTemplate
+                ??
+                (
+                    templateId
+                        ? undefined
+                        : defaultTemplate ?? templateData[0]
+                );
+
+            if (selectedTemplate) {
                 setTemplateId(
                     String(
-                        defaultTemplate.id
+                        selectedTemplate.id
                     )
                 );
             }
         } catch (error) {
             console.error(
                 error
+            );
+            setPrintConfigError(
+                'Gagal memuat daftar template dan signature.'
             );
         }
     }
@@ -434,19 +483,24 @@ export default function InquiryPrintCenter({ pics }: Props) {
         }
 
         try {
-            await uploadPrintTemplate({
-                name:
-                    templateName,
+            const uploadedTemplate =
+                await uploadPrintTemplate({
+                    name:
+                        templateName,
 
-                division:
-                    templateDivision,
+                    division:
+                        templateDivision,
 
-                file:
-                    templateFile,
+                    file:
+                        templateFile,
 
-                is_default:
-                    templateDefault,
-            });
+                    is_default:
+                        templateDefault,
+                });
+
+            setTemplateId(
+                String(uploadedTemplate.id)
+            );
 
             setTemplateModal(
                 false
@@ -457,7 +511,9 @@ export default function InquiryPrintCenter({ pics }: Props) {
             setTemplateFile(null);
             setTemplateDefault(false);
 
-            await loadPrintConfig();
+            await loadPrintConfig(
+                uploadedTemplate.id
+            );
 
             alert(
                 'Template berhasil diupload.'
@@ -494,28 +550,34 @@ export default function InquiryPrintCenter({ pics }: Props) {
         }
 
         try {
-            await uploadSalesSignature({
-                user_id:
-                    signatureUserId
-                        ?
-                        Number(
-                            signatureUserId
-                        )
-                        :
-                        undefined,
+            const uploadedSignature =
+                await uploadSalesSignature({
+                    user_id:
+                        signatureUserId
+                            ?
+                            Number(
+                                signatureUserId
+                            )
+                            :
+                            undefined,
 
-                name:
-                    signatureName,
+                    name:
+                        signatureName,
 
-                division:
-                    signatureDivision,
+                    division:
+                        signatureDivision,
 
-                position:
-                    signaturePosition,
+                    position:
+                        signaturePosition,
 
-                signature:
-                    signatureFile,
-            });
+                    signature:
+                        signatureFile,
+                });
+
+            setSignatureId(
+                String(uploadedSignature.id)
+            );
+            setSignatureSelectionLocked(true);
 
             setSignatureModal(
                 false
@@ -566,6 +628,31 @@ export default function InquiryPrintCenter({ pics }: Props) {
         quotation_date:
             quotationDate,
     };
+
+    function selectInquiry(inquiryId: number | null) {
+        setSignatureSelectionLocked(false);
+        setSelectedInquiryId(inquiryId);
+    }
+
+    async function handleDownloadPdf() {
+        if (!selectedInquiryId || !templateId) {
+            return;
+        }
+
+        setPdfDownloading(true);
+
+        try {
+            await downloadInquiryPdf(
+                selectedInquiryId,
+                quotationPayload
+            );
+        } catch (error) {
+            console.error(error);
+            alert('Gagal membuat PDF. Silakan coba lagi.');
+        } finally {
+            setPdfDownloading(false);
+        }
+    }
 
 
     return (
@@ -645,6 +732,60 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                 flex-wrap
                                 gap-2
                             ">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setAssetList('signatures')
+                                    }
+                                    className="
+                                        inline-flex
+                                        h-10
+                                        items-center
+                                        gap-2
+                                        rounded-lg
+                                        border
+                                        border-gray-300
+                                        bg-white
+                                        px-4
+                                        text-sm
+                                        font-medium
+                                        text-gray-700
+                                        shadow-sm
+                                        transition
+                                        hover:bg-gray-50
+                                    "
+                                >
+                                    <PenLine size={16} />
+                                    Daftar Signature
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setAssetList('templates')
+                                    }
+                                    className="
+                                        inline-flex
+                                        h-10
+                                        items-center
+                                        gap-2
+                                        rounded-lg
+                                        border
+                                        border-gray-300
+                                        bg-white
+                                        px-4
+                                        text-sm
+                                        font-medium
+                                        text-gray-700
+                                        shadow-sm
+                                        transition
+                                        hover:bg-gray-50
+                                    "
+                                >
+                                    <FileText size={16} />
+                                    Daftar Template
+                                </button>
+
                                 <button
                                     type="button"
                                     onClick={() =>
@@ -765,7 +906,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                     }
 
                                     onSelect={
-                                        setSelectedInquiryId
+                                        selectInquiry
                                     }
                                 />
                             )}
@@ -1133,13 +1274,14 @@ export default function InquiryPrintCenter({ pics }: Props) {
 
                                                     onChange={(
                                                         event
-                                                    ) =>
+                                                    ) => {
+                                                        setSignatureSelectionLocked(true);
                                                         setSignatureId(
                                                             event
                                                                 .target
                                                                 .value
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
 
                                                     className="
                                                     mt-1.5
@@ -1314,14 +1456,10 @@ export default function InquiryPrintCenter({ pics }: Props) {
 
                                                 disabled={
                                                     !templateId
+                                                    || pdfDownloading
                                                 }
 
-                                                onClick={() =>
-                                                    downloadInquiryPdf(
-                                                        selectedInquiryId,
-                                                        quotationPayload
-                                                    )
-                                                }
+                                                onClick={handleDownloadPdf}
 
                                                 className="
                                                     inline-flex
@@ -1345,7 +1483,9 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                                     size={17}
                                                 />
 
-                                                Download PDF
+                                                {pdfDownloading
+                                                    ? 'Memproses PDF...'
+                                                    : 'Download PDF'}
                                             </button>
                                         </div>
                                     </div>
@@ -1356,6 +1496,190 @@ export default function InquiryPrintCenter({ pics }: Props) {
                     </div>
                 </div>
 
+                {assetList !== null && (
+                    <div
+                        className="
+                            fixed
+                            inset-0
+                            z-50
+                            flex
+                            items-center
+                            justify-center
+                            bg-black/40
+                            p-4
+                        "
+                    >
+                        <section
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="asset-list-title"
+                            className="
+                                max-h-[85vh]
+                                w-full
+                                max-w-2xl
+                                overflow-hidden
+                                rounded-xl
+                                bg-white
+                                shadow-xl
+                            "
+                        >
+                            <div className="
+                                flex
+                                items-center
+                                justify-between
+                                border-b
+                                border-gray-100
+                                px-6
+                                py-4
+                            ">
+                                <div>
+                                    <h2
+                                        id="asset-list-title"
+                                        className="font-semibold text-gray-900"
+                                    >
+                                        {assetList === 'templates'
+                                            ? 'Daftar Template'
+                                            : 'Daftar Signature'}
+                                    </h2>
+                                    <p className="mt-0.5 text-sm text-gray-500">
+                                        {assetList === 'templates'
+                                            ? 'Pilih template aktif yang akan digunakan.'
+                                            : 'Pilih signature aktif yang akan digunakan.'}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setAssetList(null)}
+                                    aria-label="Tutup daftar"
+                                    className="
+                                        rounded-lg
+                                        p-2
+                                        text-gray-400
+                                        hover:bg-gray-100
+                                    "
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="max-h-[65vh] overflow-y-auto p-4">
+                                {printConfigError ? (
+                                    <p
+                                        role="alert"
+                                        className="p-6 text-center text-sm text-red-600"
+                                    >
+                                        {printConfigError}
+                                    </p>
+                                ) : assetList === 'templates' ? (
+                                    templates.length === 0 ? (
+                                        <p className="p-6 text-center text-sm text-gray-500">
+                                            Belum ada template aktif.
+                                        </p>
+                                    ) : (
+                                        <div className="divide-y divide-gray-100">
+                                            {templates.map((template) => (
+                                                <div
+                                                    key={template.id}
+                                                    className="flex items-center justify-between gap-4 py-3"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-medium text-gray-900">
+                                                            {template.name}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            {template.code}
+                                                            {template.division
+                                                                ? ` · ${template.division}`
+                                                                : ''}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex shrink-0 items-center gap-2">
+                                                        {template.is_default && (
+                                                            <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+                                                                Default
+                                                            </span>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setTemplateId(String(template.id));
+                                                                setAssetList(null);
+                                                            }}
+                                                            className="
+                                                                rounded-lg
+                                                                border
+                                                                border-gray-300
+                                                                px-3
+                                                                py-1.5
+                                                                text-xs
+                                                                font-medium
+                                                                text-gray-700
+                                                                hover:bg-gray-50
+                                                            "
+                                                        >
+                                                            {String(template.id) === templateId
+                                                                ? 'Dipilih'
+                                                                : 'Pakai'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )
+                                ) : signatures.length === 0 ? (
+                                    <p className="p-6 text-center text-sm text-gray-500">
+                                        Belum ada signature aktif.
+                                    </p>
+                                ) : (
+                                    <div className="divide-y divide-gray-100">
+                                        {signatures.map((signature) => (
+                                            <div
+                                                key={signature.id}
+                                                className="flex items-center justify-between gap-4 py-3"
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-medium text-gray-900">
+                                                        {signature.name}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-gray-500">
+                                                        {[signature.position, signature.division]
+                                                            .filter(Boolean)
+                                                            .join(' · ') || 'Jabatan/divisi belum diisi'}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSignatureSelectionLocked(true);
+                                                        setSignatureId(String(signature.id));
+                                                        setAssetList(null);
+                                                    }}
+                                                    className="
+                                                        shrink-0
+                                                        rounded-lg
+                                                        border
+                                                        border-gray-300
+                                                        px-3
+                                                        py-1.5
+                                                        text-xs
+                                                        font-medium
+                                                        text-gray-700
+                                                        hover:bg-gray-50
+                                                    "
+                                                >
+                                                    {String(signature.id) === signatureId
+                                                        ? 'Dipilih'
+                                                        : 'Pakai'}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                )}
 
                 {/* TEMPLATE MODAL */}
 
@@ -1399,7 +1723,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                         text-sm
                                         text-gray-500
                                     ">
-                                        Template quotation dalam format DOCX.
+                                        Pastikan DOCX memiliki placeholder yang ingin diganti, lalu upload versi terbaru.
                                     </p>
                                 </div>
 
@@ -1566,11 +1890,13 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                         text-gray-500
                                     ">
                                         Gunakan placeholder seperti
+                                        ${'{inquiry_code}'},
                                         ${'{customer_name}'},
                                         ${'{customer_address}'},
                                         ${'{product_name}'},
                                         ${'{price}'},
                                         dan ${'{signature}'}.
+                                        Perubahan kode tidak mengubah file DOCX yang sudah diupload.
                                     </p>
                                 </div>
 

@@ -57,7 +57,7 @@ export interface UploadSignaturePayload {
 
 export async function uploadPrintTemplate(
     payload: UploadTemplatePayload
-) {
+): Promise<PrintTemplate> {
     const formData =
         new FormData();
 
@@ -110,7 +110,7 @@ export async function uploadPrintTemplate(
 
 export async function uploadSalesSignature(
     payload: UploadSignaturePayload
-) {
+): Promise<SalesSignature> {
     const formData =
         new FormData();
 
@@ -192,7 +192,7 @@ export async function fetchPrintInquiry(
     return response.data;
 }
 
-export async function fetchPrintTemplates() {
+export async function fetchPrintTemplates(): Promise<PrintTemplate[]> {
     const response =
         await api.get(
             '/inquiries/print/templates'
@@ -201,7 +201,7 @@ export async function fetchPrintTemplates() {
     return response.data;
 }
 
-export async function fetchSalesSignatures() {
+export async function fetchSalesSignatures(): Promise<SalesSignature[]> {
     const response =
         await api.get(
             '/inquiries/print/signatures'
