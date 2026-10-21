@@ -6,8 +6,16 @@ use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InquiryDetailController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\InquiryPrintController;
+use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'create'])->name('login');
+    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:20,1');
+});
+Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -125,6 +133,15 @@ Route::delete(
     '/inquiry/detail/{detail}',
     [InquiryDetailController::class, 'destroy']
 )->name('inquiry-detail.destroy');
+Route::get(
+    '/inquiry-print/date-range',
+    [InquiryPrintController::class, 'index']
+);
+Route::get('/inquiry-print/date-range', [InquiryPrintController::class, 'index']);
+Route::get('/inquiry-print/assets/{kind}/{id}/file', [InquiryPrintController::class, 'assetFile'])
+    ->whereIn('kind', ['templates', 'signatures'])->whereNumber('id');
+Route::delete('/inquiry-print/assets/{kind}/{id}', [InquiryPrintController::class, 'deleteAsset'])
+    ->whereIn('kind', ['templates', 'signatures'])->whereNumber('id');
 
 // Menu Print
 Route::get(

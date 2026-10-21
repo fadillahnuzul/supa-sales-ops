@@ -25,7 +25,6 @@ import InquiryPrintTable
     from './../Components/Inquiry/Print/InquiryPrintTable';
 
 import {
-    fetchPrintInquiries,
     fetchPrintTemplates,
     fetchSalesSignatures,
     downloadInquiryExcel,
@@ -40,6 +39,18 @@ import type {
     PrintTemplate,
     SalesSignature,
 } from './../Services/InquiryPrintApi';
+
+// Authenticated endpoints; keep the existing API service untouched.
+async function deletePrintAsset(kind: 'templates' | 'signatures', id: number) {
+    const { default: axios } = await import('axios');
+    await axios.delete(`/inquiry-print/assets/${kind}/${id}`);
+}
+function assetUrl(kind: 'templates' | 'signatures', id: number) {
+    return `/inquiry-print/assets/${kind}/${id}/file`;
+}
+function localDate(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 interface PicOption {
     id: number;
@@ -59,22 +70,10 @@ export default function InquiryPrintCenter({ pics }: Props) {
     |--------------------------------------------------------------------------
     */
 
-    const [day, setDay] =
-        useState('');
-
-    const [month, setMonth] =
-        useState(
-            String(
-                now.getMonth() + 1
-            )
-        );
-
-    const [year, setYear] =
-        useState(
-            String(
-                now.getFullYear()
-            )
-        );
+    const [startDate, setStartDate] = useState(() => localDate(new Date(now.getFullYear(), now.getMonth(), 1)));
+    const [endDate, setEndDate] = useState(() => localDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+    const [deletingAsset, setDeletingAsset] = useState<string | null>(null);
+    const [inquiryError, setInquiryError] = useState('');
 
     const [search, setSearch] =
         useState('');
@@ -339,55 +338,63 @@ export default function InquiryPrintCenter({ pics }: Props) {
     */
 
     useEffect(() => {
-        const timer =
-            setTimeout(
-                async () => {
-                    try {
-                        setLoading(true);
+        let cancelled = false;
+        if (!startDate || !endDate || startDate > endDate) {
+            setInquiryError('Isi tanggal awal dan akhir dengan rentang yang valid.');
+            setInquiries([]);
+            setLoading(false);
+            return;
+        }
+        setInquiryError('');
+        setLoading(true);
+        const timer = setTimeout(async () => {
+            try {
+                const { default: axios } = await import('axios');
+                const response = await axios.get('/inquiry-print/date-range', {
+                    params: { start_date: startDate, end_date: endDate, search: search || undefined },
+                });
+                if (!cancelled) setInquiries(response.data.data);
+            } catch (error) {
+                if (!cancelled) {
+                    setInquiries([]);
+                    setInquiryError('Gagal memuat inquiry. Silakan coba lagi.');
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }, 300);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [startDate, endDate, search]);
 
-                        const response =
-                            await fetchPrintInquiries({
-                                day:
-                                    day ||
-                                    undefined,
+    useEffect(() => {
+        if (selectedInquiryId && !inquiries.some(item => item.id === selectedInquiryId)) {
+            setSelectedInquiryId(null);
+            setSignatureSelectionLocked(false);
+        }
+    }, [inquiries, selectedInquiryId]);
 
-                                month:
-                                    month ||
-                                    undefined,
-
-                                year:
-                                    year ||
-                                    undefined,
-
-                                search:
-                                    search ||
-                                    undefined,
-                            });
-
-                        setInquiries(
-                            response.data
-                        );
-                    } catch (error) {
-                        console.error(
-                            error
-                        );
-                    } finally {
-                        setLoading(false);
-                    }
-                },
-                300
-            );
-
-        return () =>
-            clearTimeout(timer);
-
-    }, [
-        day,
-        month,
-        year,
-        search,
-    ]);
-
+    async function handleDeleteAsset(kind: 'templates' | 'signatures', id: number, name: string) {
+        if (deletingAsset || !window.confirm(`Hapus ${kind === 'templates' ? 'template' : 'signature'} "${name}"?`)) return;
+        setDeletingAsset(`${kind}:${id}`);
+        try {
+            await deletePrintAsset(kind, id);
+            if (kind === 'templates') {
+                const remaining = templates.filter(item => item.id !== id);
+                setTemplates(remaining);
+                if (templateId === String(id)) setTemplateId(String((remaining.find(item => item.is_default) ?? remaining[0])?.id ?? ''));
+            } else {
+                setSignatures(items => items.filter(item => item.id !== id));
+                if (signatureId === String(id)) {
+                    setSignatureId('');
+                    setSignatureSelectionLocked(false);
+                }
+            }
+        } catch (error) {
+            alert('Gagal menghapus file. Periksa hak akses atau coba lagi.');
+        } finally {
+            setDeletingAsset(null);
+        }
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -854,27 +861,11 @@ export default function InquiryPrintCenter({ pics }: Props) {
                         {/* FILTER */}
 
                         <InquiryPrintFilter
-                            day={day}
-                            month={month}
-                            year={year}
-                            search={search}
-
-                            onDayChange={
-                                setDay
-                            }
-
-                            onMonthChange={
-                                setMonth
-                            }
-
-                            onYearChange={
-                                setYear
-                            }
-
-                            onSearchChange={
-                                setSearch
-                            }
+                            startDate={startDate} endDate={endDate} search={search}
+                            onStartDateChange={setStartDate} onEndDateChange={setEndDate}
+                            onSearchChange={setSearch}
                         />
+                        {inquiryError && <p role="alert" className="text-sm text-red-600">{inquiryError}</p>}
 
 
                         {/* TABLE */}
@@ -1581,7 +1572,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                             {templates.map((template) => (
                                                 <div
                                                     key={template.id}
-                                                    className="flex items-center justify-between gap-4 py-3"
+                                                    className="flex flex-wrap items-center justify-between gap-4 py-3"
                                                 >
                                                     <div className="min-w-0">
                                                         <p className="truncate text-sm font-medium text-gray-900">
@@ -1595,6 +1586,8 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                                         </p>
                                                     </div>
                                                     <div className="flex shrink-0 items-center gap-2">
+                                                        <a href={assetUrl('templates', template.id)} target="_blank" rel="noopener noreferrer" className="rounded-lg border px-3 py-1.5 text-xs text-green-700">Lihat File</a>
+                                                        <button type="button" disabled={deletingAsset !== null} onClick={() => handleDeleteAsset('templates', template.id, template.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50">{deletingAsset === `templates:${template.id}` ? 'Menghapus…' : 'Hapus'}</button>
                                                         {template.is_default && (
                                                             <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
                                                                 Default
@@ -1636,9 +1629,12 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                         {signatures.map((signature) => (
                                             <div
                                                 key={signature.id}
-                                                className="flex items-center justify-between gap-4 py-3"
+                                                className="flex flex-wrap items-center justify-between gap-4 py-3"
                                             >
-                                                <div className="min-w-0">
+                                                <a href={assetUrl('signatures', signature.id)} target="_blank" rel="noopener noreferrer" aria-label={`Lihat signature ${signature.name}`} className="shrink-0">
+                                                    <img src={assetUrl('signatures', signature.id)} alt={`Signature ${signature.name}`} loading="lazy" className="h-20 w-32 rounded-lg border bg-white object-contain p-2" />
+                                                </a>
+                                                <div className="min-w-0 flex-1">
                                                     <p className="truncate text-sm font-medium text-gray-900">
                                                         {signature.name}
                                                     </p>
@@ -1648,6 +1644,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                                             .join(' · ') || 'Jabatan/divisi belum diisi'}
                                                     </p>
                                                 </div>
+                                                <button type="button" disabled={deletingAsset !== null} onClick={() => handleDeleteAsset('signatures', signature.id, signature.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50">{deletingAsset === `signatures:${signature.id}` ? 'Menghapus…' : 'Hapus'}</button>
                                                 <button
                                                     type="button"
                                                     onClick={() => {

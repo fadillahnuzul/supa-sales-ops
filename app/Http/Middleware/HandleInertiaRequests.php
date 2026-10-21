@@ -34,23 +34,42 @@ class HandleInertiaRequests extends Middleware
      * @return array<string, mixed>
      */
     public function share(Request $request): array
-    {
-        return [
-            ...parent::share($request),
+{
+    $employee = $request->user();
 
-            'auth' => [
-                'user' => $request->user()
-                    ? [
-                        'id' => $request->user()->id,
-                        'name' => $request->user()->name,
-                        'email' => $request->user()->email,
-                        'role' => $request->user()->role ?? 'Industry',
-                        'photo' => $request->user()->photo
-                            ? asset('storage/' . $request->user()->photo)
-                            : null,
-                    ]
-                    : null,
-            ],
-        ];
+    $permissions = $employee
+        ? [
+            'app.view',
+            'assets.view',
+            'inquiries.write',
+            'print.export',
+        ]
+        : [];
+
+    if ($employee?->canManagePrintAssets()) {
+        $permissions[] = 'assets.manage';
     }
+
+    return [
+        ...parent::share($request),
+
+        'auth' => [
+            'user' => $employee
+                ? [
+                    'id' => $employee->id,
+                    'name' => $employee->full_name,
+                    'username' => $employee->username,
+                    'email' => $employee->email,
+                    'photo' => $employee->profile_photo_path
+                        ? asset(
+                            'storage/' . $employee->profile_photo_path
+                        )
+                        : null,
+                ]
+                : null,
+
+            'permissions' => $permissions,
+        ],
+    ];
+}
 }

@@ -6,8 +6,9 @@ use App\Models\Sales\InquiryModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class EmployeeModel extends Model
+class EmployeeModel extends Authenticatable
 {
     use SoftDeletes;
 
@@ -42,6 +43,16 @@ class EmployeeModel extends Model
         'hire_date' => 'date',
         'is_active' => 'boolean',
     ];
+
+    public function getRememberTokenName(): string
+    {
+        return '';
+    }
+
+    public function canManagePrintAssets(): bool
+    {
+        return $this->is_active && in_array($this->username, config('access.asset_managers', []), true);
+    }
 
     public function inquiries(): HasMany
     {

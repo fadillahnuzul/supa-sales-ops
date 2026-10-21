@@ -105,10 +105,7 @@ export default function InquiryPrintTable({
                                         />
 
                                     </td>
-
-
                                     <td className="p-3 font-medium">
-
                                         {
                                             item.code
                                         }

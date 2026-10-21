@@ -1,3 +1,4 @@
+import { router, usePage } from '@inertiajs/react';
 import { useState, type ReactNode } from 'react';
 
 import Sidebar from '@/Components/Sidebar';
@@ -10,6 +11,7 @@ interface AuthenticatedLayoutProps {
 export default function AuthenticatedLayout({
     children,
 }: AuthenticatedLayoutProps) {
+    const { auth } = usePage<{ auth: { user: { name: string; username: string } | null } }>().props;
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     return (
@@ -33,6 +35,7 @@ export default function AuthenticatedLayout({
                 </div>
 
                 <main className="min-w-0 flex-1 overflow-y-auto bg-[#F7F8FA]">
+                    
                     {children}
                 </main>
             </div>

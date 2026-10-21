@@ -18,6 +18,8 @@ use PhpOffice\PhpWord\TemplateProcessor;
 use Symfony\Component\Process\Exception\ProcessStartFailedException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
+use Illuminate\Support\Facades\Gate;
+
 
 class InquiryPrintController extends Controller
 {
@@ -31,7 +33,7 @@ class InquiryPrintController extends Controller
                 'e.id'
             )
             ->join(
-                'core.positions as p',
+                'core.positions as  p',
                 'p.id',
                 '=',
                 'ep.position_id'
@@ -73,41 +75,34 @@ class InquiryPrintController extends Controller
     public function index(Request $request)
     {
         $query = DB::table('sales.inquiries as i')
-
             ->leftJoin(
                 'core.customers as c',
                 'c.id',
                 '=',
                 'i.customer_id'
             )
-
             ->leftJoin(
                 'sales.inquiry_details as d',
                 'd.inquiry_id',
                 '=',
                 'i.id'
             )
-
             ->leftJoin(
                 'core.employees as e',
                 'e.id',
                 '=',
                 'i.pic'
             )
-
             ->select([
                 'i.id',
                 'i.code',
                 'i.date',
                 'i.pic as pic_id',
                 'e.first_name as pic_first_name',
-
                 'c.name as customer_name',
-
                 DB::raw(
                     'COUNT(d.id) as total_items'
                 ),
-
                 DB::raw("
             CASE
                 WHEN e.id IS NULL THEN NULL
@@ -121,7 +116,6 @@ class InquiryPrintController extends Controller
             END as pic_name
         "),
             ])
-
             ->groupBy(
                 'i.id',
                 'i.code',
@@ -132,49 +126,29 @@ class InquiryPrintController extends Controller
                 'e.first_name',
                 'e.last_name'
             );
-
-        if ($request->filled('year')) {
-            $query->whereYear(
-                'i.date',
-                $request->year
-            );
-        }
-
-        if ($request->filled('month')) {
-            $query->whereMonth(
-                'i.date',
-                $request->month
-            );
-        }
-
-        if ($request->filled('day')) {
-            $query->whereDay(
-                'i.date',
-                $request->day
-            );
-        }
-
+        $request->validate([
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+        ]);
+        $start = $request->input('start_date') ?: now()->startOfMonth()->toDateString();
+        $end = $request->input('end_date') ?: now()->endOfMonth()->toDateString();
+        abort_if($start > $end, 422, 'Rentang tanggal tidak valid.');
+        $query->where('i.date', '>=', Carbon::parse($start)->startOfDay())
+            ->where('i.date', '<', Carbon::parse($end)->addDay()->startOfDay());
         if ($request->filled('search')) {
-
             $search =
-                '%'.
-                strtolower(
+                '%' . strtolower(
                     $request->search
-                ).
-                '%';
-
+                ) . '%';
             $query->where(function ($q) use ($search) {
-
                 $q->whereRaw(
                     'LOWER(i.code) LIKE ?',
                     [$search]
                 );
-
                 $q->orWhereRaw(
                     'LOWER(c.name) LIKE ?',
                     [$search]
                 );
-
                 $q->orWhereRaw(
                     "
             LOWER(
@@ -189,7 +163,6 @@ class InquiryPrintController extends Controller
                 );
             });
         }
-
         return response()->json(
             $query
                 ->orderByDesc('i.date')
@@ -197,6 +170,67 @@ class InquiryPrintController extends Controller
                 ->paginate(20)
         );
     }
+
+    public function assetFile(string $kind, int $id)
+    {
+        abort_unless(in_array($kind, ['templates', 'signatures'], true), 404);
+        $asset = $kind === 'templates'
+            ? PrintTemplateModel::findOrFail($id)
+            : SalesSignatureModel::findOrFail($id);
+        Gate::authorize('view', $asset);
+        $path = $kind === 'templates' ? $asset->file_path : $asset->signature_path;
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+        // Only image signatures may render inline. DOCX is served as a download.
+        $absolutePath = Storage::disk('local')->path($path);
+        abort_unless(
+            File::isFile($absolutePath),
+            404,
+            'File tidak ditemukan.'
+        );
+        $headers = [
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ];
+        if ($kind === 'signatures') {
+            $mime = File::mimeType($absolutePath);
+            abort_unless(
+                in_array(
+                    $mime,
+                    ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+                    true
+                ),
+                415,
+                'Format gambar signature tidak didukung.'
+            );
+            return response()->file(
+                $absolutePath,
+                array_merge($headers, [
+                    'Content-Type' => $mime,
+                ])
+            );
+        }
+
+        return response()->download(
+            $absolutePath,
+            basename($absolutePath),
+            $headers
+        );
+    }
+
+    public function deleteAsset(string $kind, int $id)
+    {
+        abort_unless(in_array($kind, ['templates', 'signatures'], true), 404);
+        $asset = $kind === 'templates'
+            ? PrintTemplateModel::findOrFail($id)
+            : SalesSignatureModel::findOrFail($id);
+        Gate::authorize('delete', $asset);
+        // Archive instead of breaking existing quotation references.
+        $asset->is_active = false;
+        if ($kind === 'templates') $asset->is_default = false;
+        $asset->save();
+        return response()->noContent();
+    }
+
 
     public function show(int $id)
     {
@@ -223,7 +257,7 @@ class InquiryPrintController extends Controller
 
         if (! file_exists($templatePath)) {
             $templatePath = storage_path(
-                'app/'.$templateRelativePath
+                'app/' . $templateRelativePath
             );
         }
 
@@ -359,16 +393,16 @@ class InquiryPrintController extends Controller
         );
 
         $fileName =
-            'INQUIRY_FORM_'.
+            'INQUIRY_FORM_' .
             preg_replace(
                 '/[^A-Za-z0-9_-]/',
                 '_',
                 $inquiry->code
-            ).
+            ) .
             '.xlsx';
 
         $tempPath = storage_path(
-            'app/temp/'.$fileName
+            'app/temp/' . $fileName
         );
 
         if (! is_dir(dirname($tempPath))) {
@@ -424,7 +458,7 @@ class InquiryPrintController extends Controller
 
         $data =
             $this->printService
-                ->getFullInquiry($id);
+            ->getFullInquiry($id);
 
         $inquiry =
             $data['inquiry'];
@@ -445,9 +479,9 @@ class InquiryPrintController extends Controller
 
         $templatePath =
             Storage::disk('local')
-                ->path(
-                    $template->file_path
-                );
+            ->path(
+                $template->file_path
+            );
 
         if (! file_exists($templatePath)) {
             abort(
@@ -537,8 +571,8 @@ class InquiryPrintController extends Controller
             );
 
         $fileName =
-            'QUOTATION_'.
-            $inquiry->code.
+            'QUOTATION_' .
+            $inquiry->code .
             '.docx';
 
         $tempDir =
@@ -555,8 +589,8 @@ class InquiryPrintController extends Controller
         }
 
         $outputPath =
-            $tempDir.
-            DIRECTORY_SEPARATOR.
+            $tempDir .
+            DIRECTORY_SEPARATOR .
             $fileName;
 
         $processor
@@ -592,7 +626,7 @@ class InquiryPrintController extends Controller
 
         $data =
             $this->printService
-                ->getFullInquiry($id);
+            ->getFullInquiry($id);
 
         $inquiry =
             $data['inquiry'];
@@ -607,9 +641,9 @@ class InquiryPrintController extends Controller
 
         $templatePath =
             Storage::disk('local')
-                ->path(
-                    $template->file_path
-                );
+            ->path(
+                $template->file_path
+            );
 
         if (! file_exists($templatePath)) {
             abort(
@@ -701,21 +735,21 @@ class InquiryPrintController extends Controller
         }
 
         $fileBase =
-            'QUOTATION_'.
-            $inquiry->code.
-            '_'.
+            'QUOTATION_' .
+            $inquiry->code .
+            '_' .
             Str::uuid();
 
         $docxPath =
-            $tempDir.
-            DIRECTORY_SEPARATOR.
-            $fileBase.
+            $tempDir .
+            DIRECTORY_SEPARATOR .
+            $fileBase .
             '.docx';
 
         $profileDirectory =
-            $tempDir.
-            DIRECTORY_SEPARATOR.
-            'libreoffice-profile-'.
+            $tempDir .
+            DIRECTORY_SEPARATOR .
+            'libreoffice-profile-' .
             Str::uuid();
 
         $processor->saveAs(
@@ -745,7 +779,7 @@ class InquiryPrintController extends Controller
         $profileUri =
             (PHP_OS_FAMILY === 'Windows'
                 ? 'file:///'
-                : 'file://').
+                : 'file://') .
             str_replace(
                 ' ',
                 '%20',
@@ -758,7 +792,7 @@ class InquiryPrintController extends Controller
             '--nologo',
             '--nodefault',
             '--nofirststartwizard',
-            '-env:UserInstallation='.$profileUri,
+            '-env:UserInstallation=' . $profileUri,
             '--convert-to',
             'pdf',
             '--outdir',
@@ -817,9 +851,9 @@ class InquiryPrintController extends Controller
         }
 
         $pdfPath =
-            $tempDir.
-            DIRECTORY_SEPARATOR.
-            $fileBase.
+            $tempDir .
+            DIRECTORY_SEPARATOR .
+            $fileBase .
             '.pdf';
 
         if (! file_exists($pdfPath)) {
@@ -845,7 +879,7 @@ class InquiryPrintController extends Controller
         return response()
             ->download(
                 $pdfPath,
-                $fileBase.'.pdf'
+                $fileBase . '.pdf'
             )
             ->deleteFileAfterSend(true);
     }
@@ -902,10 +936,10 @@ class InquiryPrintController extends Controller
         }
 
         $workingTemplatePath =
-            $tempDir.
-            DIRECTORY_SEPARATOR.
-            'quotation-template-'.
-            Str::uuid().
+            $tempDir .
+            DIRECTORY_SEPARATOR .
+            'quotation-template-' .
+            Str::uuid() .
             '.docx';
 
         if (! copy($templatePath, $workingTemplatePath)) {

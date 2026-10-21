@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { route } from 'ziggy-js';
 import type { PageProps } from '@/types';
 import RoleBadge from './RoleBadge';
@@ -147,6 +147,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                     className={`flex h-10 items-center justify-center rounded-xl bg-red-500 text-[12px] font-bold hover:bg-red-600 ${
                         isOpen ? 'w-full gap-2' : 'mx-auto w-11'
                     }`}
+                    onClick={() => router.post('/logout')}
                 >
                     {isOpen ? <LogOut size={17} /> : null}
                     {isOpen ? 'LOGOUT' : 'Logout'}
