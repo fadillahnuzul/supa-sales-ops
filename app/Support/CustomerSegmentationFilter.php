@@ -16,9 +16,9 @@ class CustomerSegmentationFilter
         }
 
         return $user
-            ->loadMissing('segmentasi.segmentasi')
-            ->segmentasi
-            ->pluck('segmentasi.id')
+            ->loadMissing('segmentation.segmentation')
+            ->segmentation
+            ->pluck('segmentation.id')
             ->filter(fn ($id) => $id !== null)
             ->unique()
             ->values()

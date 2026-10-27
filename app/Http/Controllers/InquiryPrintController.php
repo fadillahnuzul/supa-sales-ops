@@ -73,103 +73,148 @@ class InquiryPrintController extends Controller
     }
 
     public function index(Request $request)
-    {
-        $query = DB::table('sales.inquiries as i')
-            ->leftJoin(
-                'core.customers as c',
-                'c.id',
-                '=',
-                'i.customer_id'
-            )
-            ->leftJoin(
-                'sales.inquiry_details as d',
-                'd.inquiry_id',
-                '=',
-                'i.id'
-            )
-            ->leftJoin(
-                'core.employees as e',
-                'e.id',
-                '=',
-                'i.pic'
-            )
-            ->select([
-                'i.id',
-                'i.code',
-                'i.date',
-                'i.pic as pic_id',
-                'e.first_name as pic_first_name',
-                'c.name as customer_name',
-                DB::raw(
-                    'COUNT(d.id) as total_items'
-                ),
-                DB::raw("
-            CASE
-                WHEN e.id IS NULL THEN NULL
-                ELSE TRIM(
+{
+    $request->validate([
+        'start_date' => ['nullable', 'date_format:Y-m-d'],
+        'end_date' => [
+            'nullable',
+            'date_format:Y-m-d',
+            'after_or_equal:start_date'
+        ],
+    ]);
+
+    $employeeId = $request->user()->id;
+
+    $segmentationIds = DB::table(
+        'core.employee_segmentations'
+    )
+        ->where('employee_id', $employeeId)
+        ->pluck('segmentation_id')
+        ->all();
+
+    $query = DB::table('sales.inquiries as i')
+        ->leftJoin(
+            'core.customers as c',
+            'c.id',
+            '=',
+            'i.customer_id'
+        )
+        ->leftJoin(
+            'sales.inquiry_details as d',
+            'd.inquiry_id',
+            '=',
+            'i.id'
+        )
+        ->leftJoin(
+            'core.employees as e',
+            'e.id',
+            '=',
+            'i.pic'
+        )
+        ->whereNull('i.deleted_at')
+
+        ->whereExists(function ($subquery) use ($segmentationIds) {
+            $subquery
+                ->selectRaw('1')
+                ->from('core.employee_segmentations as es')
+                ->whereColumn('es.employee_id', 'i.pic')
+                ->whereIn('es.segmentation_id', $segmentationIds);
+        })
+
+        ->select([
+            'i.id',
+            'i.code',
+            'i.date',
+            'i.pic as pic_id',
+            'e.first_name as pic_first_name',
+            'c.name as customer_name',
+
+            DB::raw('COUNT(d.id) as total_items'),
+
+            DB::raw("
+                CASE
+                    WHEN e.id IS NULL THEN NULL
+                    ELSE TRIM(
+                        CONCAT(
+                            COALESCE(e.first_name, ''),
+                            ' ',
+                            COALESCE(e.last_name, '')
+                        )
+                    )
+                END as pic_name
+            "),
+        ])
+        ->groupBy(
+            'i.id',
+            'i.code',
+            'i.date',
+            'i.pic',
+            'c.name',
+            'e.id',
+            'e.first_name',
+            'e.last_name'
+        );
+
+    $start = $request->input('start_date')
+        ?: now()->startOfMonth()->toDateString();
+
+    $end = $request->input('end_date')
+        ?: now()->endOfMonth()->toDateString();
+
+    abort_if(
+        $start > $end,
+        422,
+        'Rentang tanggal tidak valid.'
+    );
+
+    $query
+        ->where(
+            'i.date',
+            '>=',
+            Carbon::parse($start)->startOfDay()
+        )
+        ->where(
+            'i.date',
+            '<',
+            Carbon::parse($end)->addDay()->startOfDay()
+        );
+
+    if ($request->filled('search')) {
+        $search = '%' . strtolower($request->search) . '%';
+
+        $query->where(function ($q) use ($search) {
+            $q->whereRaw(
+                'LOWER(i.code) LIKE ?',
+                [$search]
+            );
+
+            $q->orWhereRaw(
+                'LOWER(c.name) LIKE ?',
+                [$search]
+            );
+
+            $q->orWhereRaw(
+                "
+                LOWER(
                     CONCAT(
                         COALESCE(e.first_name, ''),
                         ' ',
                         COALESCE(e.last_name, '')
                     )
-                )
-            END as pic_name
-        "),
-            ])
-            ->groupBy(
-                'i.id',
-                'i.code',
-                'i.date',
-                'i.pic',
-                'c.name',
-                'e.id',
-                'e.first_name',
-                'e.last_name'
+                ) LIKE ?
+                ",
+                [$search]
             );
-        $request->validate([
-            'start_date' => ['nullable', 'date_format:Y-m-d'],
-            'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
-        ]);
-        $start = $request->input('start_date') ?: now()->startOfMonth()->toDateString();
-        $end = $request->input('end_date') ?: now()->endOfMonth()->toDateString();
-        abort_if($start > $end, 422, 'Rentang tanggal tidak valid.');
-        $query->where('i.date', '>=', Carbon::parse($start)->startOfDay())
-            ->where('i.date', '<', Carbon::parse($end)->addDay()->startOfDay());
-        if ($request->filled('search')) {
-            $search =
-                '%' . strtolower(
-                    $request->search
-                ) . '%';
-            $query->where(function ($q) use ($search) {
-                $q->whereRaw(
-                    'LOWER(i.code) LIKE ?',
-                    [$search]
-                );
-                $q->orWhereRaw(
-                    'LOWER(c.name) LIKE ?',
-                    [$search]
-                );
-                $q->orWhereRaw(
-                    "
-            LOWER(
-                CONCAT(
-                    COALESCE(e.first_name, ''),
-                    ' ',
-                    COALESCE(e.last_name, '')
-                )
-            ) LIKE ?
-            ",
-                    [$search]
-                );
-            });
-        }
-        return response()->json(
-            $query
-                ->orderByDesc('i.date')
-                ->orderByDesc('i.id')
-                ->paginate(20)
-        );
+        });
     }
+
+    return response()->json(
+        $query
+            ->orderByDesc('i.date')
+            ->orderByDesc('i.id')
+            ->paginate(20)
+    );
+}
 
     public function assetFile(string $kind, int $id)
     {

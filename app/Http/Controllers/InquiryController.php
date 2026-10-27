@@ -10,6 +10,7 @@ use Inertia\Response;
 use App\Models\Sales\InquiryModel;
 use App\Models\Core\CustomerModel;
 use App\Models\Core\EmployeeModel;
+use App\Support\CustomerSegmentationFilter;
 
 class InquiryController extends Controller
 {
@@ -28,7 +29,11 @@ class InquiryController extends Controller
                 '=',
                 'i.pic'
             )
-            ->whereNull('i.deleted_at')
+            ->whereNull('i.deleted_at');
+
+        CustomerSegmentationFilter::apply($inquiries, 'c');
+
+        $inquiries = $inquiries
             ->select([
                 'i.id',
                 'i.code',
@@ -423,28 +428,25 @@ class InquiryController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $customers = DB::table(
-            'core.customers'
-        )
+        $customerQuery = DB::table('core.customers as c');
+
+        CustomerSegmentationFilter::apply($customerQuery, 'c');
+
+        $customers = $customerQuery
             ->select([
-                'id',
-                'name',
-                'divisi',
-                'level',
+                'c.id',
+                'c.name',
+                'c.divisi',
+                'c.level',
             ])
-            ->orderBy('name')
+            ->orderBy('c.name')
             ->get()
             ->map(
                 fn($customer) => [
                     'id' => $customer->id,
-
                     'name' => $customer->name,
-
-                    'division' =>
-                    $customer->divisi,
-
-                    'riskLevel' =>
-                    $customer->level,
+                    'division' => $customer->divisi,
+                    'riskLevel' => $customer->level,
                 ]
             );
 

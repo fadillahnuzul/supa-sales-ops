@@ -149,6 +149,8 @@ export default function DatabaseCenter({
         setCompetitorNameFilter,
     ] = useState('');
 
+    const [segmentationFilter, setSegmentationFilter] = useState('');
+
     const [
         customerRows,
         setCustomerRows,
@@ -275,7 +277,7 @@ export default function DatabaseCenter({
                     (
                         !competitorNameFilter ||
                         competitor.competitor ===
-                            competitorNameFilter
+                        competitorNameFilter
                     ) &&
                     (
                         competitor.competitor ??
@@ -743,6 +745,9 @@ export default function DatabaseCenter({
                             setCompetitorNameFilter={
                                 setCompetitorNameFilter
                             }
+                            segmentations={segmentations}
+                            segmentationFilter={segmentationFilter}
+                            setSegmentationFilter={setSegmentationFilter}
                         />
 
 

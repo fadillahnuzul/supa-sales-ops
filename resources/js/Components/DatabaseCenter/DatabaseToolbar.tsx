@@ -14,6 +14,12 @@ interface Props {
     competitorNames: string[];
     competitorNameFilter: string;
     setCompetitorNameFilter: (value: string) => void;
+    segmentations: {
+        id: number;
+        name: string;
+    }[];
+    segmentationFilter: string;
+    setSegmentationFilter: (value: string) => void;
 }
 
 export default function DatabaseToolbar({
@@ -23,6 +29,9 @@ export default function DatabaseToolbar({
     competitorNames,
     competitorNameFilter,
     setCompetitorNameFilter,
+    segmentations,
+    segmentationFilter,
+    setSegmentationFilter,
 }: Props) {
     function getPlaceholder() {
         switch (activeTab) {
@@ -88,84 +97,62 @@ export default function DatabaseToolbar({
                 <select
                     key={activeTab}
                     value={
-                        activeTab === 'competitor'
-                            ? competitorNameFilter
-                            : undefined
+                        activeTab === 'customer'
+                            ? segmentationFilter
+                            : activeTab === 'competitor'
+                                ? competitorNameFilter
+                                : ''
                     }
                     onChange={(event) => {
+                        if (activeTab === 'customer') {
+                            setSegmentationFilter(event.target.value);
+                        }
+
                         if (activeTab === 'competitor') {
-                            setCompetitorNameFilter(
-                                event.target.value
-                            );
+                            setCompetitorNameFilter(event.target.value);
                         }
                     }}
                     className="
-                        h-11 rounded-lg
-                        border border-gray-300
-                        bg-white
-                        px-3
-                        text-sm
-                        outline-none
-                        focus:border-[#19875f]
-                    "
+        h-11 rounded-lg
+        border border-gray-300
+        bg-white px-3
+        text-sm outline-none
+        focus:border-[#19875f]
+    "
                 >
                     {activeTab === 'customer' && (
                         <>
-                            <option>
-                                Semua Segmentasi
-                            </option>
+                            <option value="">Semua Segmentasi</option>
 
-                            <option>
-                                General Food Processing
-                            </option>
-
-                            <option>
-                                Snack Industri
-                            </option>
-
-                            <option>
-                                HORECA
-                            </option>
+                            {segmentations.map((segmentation) => (
+                                <option
+                                    key={segmentation.id}
+                                    value={String(segmentation.id)}
+                                >
+                                    {segmentation.name}
+                                </option>
+                            ))}
                         </>
                     )}
 
                     {activeTab === 'product' && (
                         <>
-                            <option>
-                                Semua Kategori Produk
-                            </option>
-
-                            <option>
-                                Spices & Herbs
-                            </option>
-
-                            <option>
-                                Whole Spices
-                            </option>
-
-                            <option>
-                                Pepper
-                            </option>
+                            <option value="">Semua Kategori Produk</option>
+                            <option value="Spices & Herbs">Spices & Herbs</option>
+                            <option value="Whole Spices">Whole Spices</option>
+                            <option value="Pepper">Pepper</option>
                         </>
                     )}
 
-                    {activeTab ===
-                        'competitor' && (
+                    {activeTab === 'competitor' && (
                         <>
-                            <option value="">
-                                Semua Nama Competitor
-                            </option>
+                            <option value="">Semua Nama Competitor</option>
 
-                            {competitorNames.map(
-                                (name) => (
-                                    <option
-                                        key={name}
-                                        value={name}
-                                    >
-                                        {name}
-                                    </option>
-                                )
-                            )}
+                            {competitorNames.map((name) => (
+                                <option key={name} value={name}>
+                                    {name}
+                                </option>
+                            ))}
                         </>
                     )}
                 </select>
