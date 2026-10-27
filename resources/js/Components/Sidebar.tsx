@@ -13,6 +13,7 @@ import {
     ChevronLeft,
     ChevronRight,
     type LucideIcon,
+    UserGroup,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -66,14 +67,25 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 ) === true,
         },
         {
-            label: 'Profil & Roles',
+            label: 'Access & Roles',
             href: route('role-management'),
-            icon: UserCog,
+            icon: UserGroup,
             active: route().current(
                     'role-management'
                 ) === true,
         },
-    ];
+
+        {
+            label: 'Profil',
+            href: route('profile-settings'),
+            icon: UserCog,
+            active: route().current(
+                    'profile-settings'
+                ) === true,
+        },
+    ].filter((menu) =>
+        menu.href !== route('role-management') || user?.role_id !== 2
+    );
 
     return (
         <aside

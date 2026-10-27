@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -37,11 +38,18 @@ class LoginController extends Controller
             RateLimiter::hit($key, 60);
             throw ValidationException::withMessages(['username' => 'Username atau password salah, atau akun tidak aktif.']);
         }
+        if (! $employee->hasSystemAccess()) {
+            RateLimiter::clear($key);
+            throw ValidationException::withMessages([
+                'username' => 'Oops! Kamu belum punya akses. Hubungi Digicom atau Sales Coordinator ya!',
+            ]);
+        }
         // Tidak memakai Auth::attempt: hindari rehash password milik sistem employee.
         Auth::guard('web')->login($employee, false);
         $request->session()->regenerate();
         $request->session()->put('employee_password_hash', hash('sha256', $employee->password));
         RateLimiter::clear($key);
+
         return redirect()->intended('/dashboard');
     }
 
@@ -50,6 +58,7 @@ class LoginController extends Controller
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect('/login');
     }
 }

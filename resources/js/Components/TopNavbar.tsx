@@ -43,10 +43,22 @@ export default function TopNavbar() {
                             {user?.name ?? 'User'}
                         </p>
 
-                        <RoleBadge
-                            role={user?.role ?? 'Industri'}
-                            className="mt-1"
-                        />
+                        <div className="mt-1 flex flex-wrap justify-end gap-1">
+                            {user?.segmentation_names?.length ? (
+                                user.segmentation_names.map((segmentasi) => (
+                                    <span
+                                        key={segmentasi}
+                                        className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700"
+                                    >
+                                        {segmentasi}
+                                    </span>
+                                ))
+                            ) : (
+                                <span className="text-[11px] text-gray-400">
+                                    No Segmentation
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     <img

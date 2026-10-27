@@ -1,18 +1,17 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InquiryDetailController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\InquiryPrintController;
 use App\Http\Controllers\PrintTemplateController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RoleManagementController;
 use App\Http\Controllers\SalesSignatureController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -50,7 +49,7 @@ Route::middleware('auth')->group(function () {
             '/{id}/excel',
             [InquiryPrintController::class, 'exportExcel']
         )->whereNumber('id');
-    
+
         Route::post(
             '/{id}/word',
             [InquiryPrintController::class, 'exportWord']
@@ -64,15 +63,15 @@ Route::middleware('auth')->group(function () {
             [InquiryPrintController::class, 'show']
         )->whereNumber('id');
     });
-    
+
     Route::get('/', function () {
         return redirect()->route('dashboard');
     });
-    
+
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
-    
+
     // Database Center
     Route::get(
         '/database-center',
@@ -112,12 +111,12 @@ Route::middleware('auth')->group(function () {
         '/products',
         [ProductController::class, 'store']
     )->name('products.store');
-    
+
     Route::put(
         '/products/{product}',
         [ProductController::class, 'update']
     )->name('products.update');
-    
+
     Route::delete(
         '/products/{product}',
         [ProductController::class, 'destroy']
@@ -151,7 +150,7 @@ Route::middleware('auth')->group(function () {
                 [CompetitorController::class, 'destroy']
             )->name('destroy');
         });
-    
+
     // Inquiry Menu
     Route::get(
         '/inquiry',
@@ -194,26 +193,33 @@ Route::middleware('auth')->group(function () {
         '/inquiry-print', [InquiryPrintController::class, 'page']
     )->name('inquiry-print');
 
-    //Role Management
+    //Menu User Password
     Route::get(
-        '/role-management',
-        [RoleManagementController::class, 'index']
-    )->name('role-management');
+        '/profile-settings', [InquiryPrintController::class, 'page']
+    )->name('profile-settings');
 
-    Route::post(
-        '/role-management',
-        [RoleManagementController::class, 'store']
-    )->name('role-management.store');
+    Route::middleware('can:manage-role-management')->group(function () {
+        // Role Management
+        Route::get(
+            '/role-management',
+            [RoleManagementController::class, 'index']
+        )->name('role-management');
 
-    Route::get(
-        '/role-management/{id}/edit',
-        [RoleManagementController::class, 'edit']
-    )->name('role-management.edit');
+        Route::post(
+            '/role-management',
+            [RoleManagementController::class, 'store']
+        )->name('role-management.store');
 
-    Route::put(
-        '/role-management/{id}',
-        [RoleManagementController::class, 'update']
-    )->name('role-management.update');
+        Route::get(
+            '/role-management/{id}/edit',
+            [RoleManagementController::class, 'edit']
+        )->name('role-management.edit');
+
+        Route::put(
+            '/role-management/{id}',
+            [RoleManagementController::class, 'update']
+        )->name('role-management.update');
+    });
 });
 
 // Route::middleware('auth')->group(function () {

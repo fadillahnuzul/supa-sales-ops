@@ -1,9 +1,11 @@
 <?php
+
 namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+
 // use Inertia\Inertia;
 
 class EmployeeSession
@@ -21,11 +23,27 @@ class EmployeeSession
                     $request->session()->invalidate();
                     $request->session()->regenerateToken();
                 }
-                if ($request->expectsJson()) abort(401, 'Silakan login kembali.');
+                if ($request->expectsJson()) {
+                    abort(401, 'Silakan login kembali.');
+                }
+
                 return redirect('/login');
             }
+            if (! $employee->hasSystemAccess()) {
+                Auth::guard('web')->logout();
+                if ($request->hasSession()) {
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
+                $message = 'Oops! Kamu belum punya akses. Hubungi Digicom atau Sales Coordinator ya!';
+                if ($request->expectsJson()) {
+                    abort(403, $message);
+                }
+
+                return redirect('/login')->withErrors(['username' => $message]);
+            }
         }
-        
+
         return $next($request);
     }
 }

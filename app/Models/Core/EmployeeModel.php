@@ -4,10 +4,9 @@ namespace App\Models\Core;
 
 use App\Models\Sales\InquiryModel;
 use App\Models\Sales\UserRoleModel;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class EmployeeModel extends Authenticatable
@@ -56,7 +55,6 @@ class EmployeeModel extends Authenticatable
         return $this->is_active && in_array($this->username, config('access.asset_managers', []), true);
     }
 
-
     public function inquiries(): HasMany
     {
         return $this->hasMany(
@@ -65,18 +63,34 @@ class EmployeeModel extends Authenticatable
         );
     }
 
-    public function segmentation() : HasMany {
+    public function segmentation(): HasMany
+    {
         return $this->hasMany(EmployeeSegmentationModel::class, 'employee_id', 'id');
     }
 
-    public function role() : HasOne {
+    public function role(): HasOne
+    {
         return $this->hasOne(UserRoleModel::class, 'employee_id', 'id');
+    }
+
+    public function hasSystemAccess(): bool
+    {
+        $roleId = $this->role?->role_id;
+
+        return $roleId !== null && in_array((int) $roleId, [1, 2, 3], true);
+    }
+
+    public function canManageRoleManagement(): bool
+    {
+        $roleId = $this->role?->role_id;
+
+        return $roleId !== null && in_array((int) $roleId, [1, 3], true);
     }
 
     public function getFullNameAttribute(): string
     {
         return trim(
-            $this->first_name . ' ' . $this->last_name
+            $this->first_name.' '.$this->last_name
         );
     }
 }

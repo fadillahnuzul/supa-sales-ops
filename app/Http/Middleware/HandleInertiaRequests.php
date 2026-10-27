@@ -34,43 +34,54 @@ class HandleInertiaRequests extends Middleware
      * @return array<string, mixed>
      */
     public function share(Request $request): array
-{
-    $employee = $request->user();
+    {
+        $employee = $request->user();
+        $roleId = $employee?->role?->role_id;
 
-    $permissions = $employee?->is_active
-    ? [
-        'app.view',
-        'assets.view',
-        'assets.manage',
-        'inquiries.write',
-        'print.export',
-    ]
-    : [];
+        $permissions = $employee?->is_active
+        ? [
+            'app.view',
+            'assets.view',
+            'assets.manage',
+            'inquiries.write',
+            'print.export',
+        ]
+        : [];
 
-    // if ($employee?->canManagePrintAssets()) {
-    //     $permissions[] = 'assets.manage';
-    // }
+        // if ($employee?->canManagePrintAssets()) {
+        //     $permissions[] = 'assets.manage';
+        // }
 
-    return [
-        ...parent::share($request),
+        return [
+            ...parent::share($request),
 
-        'auth' => [
-            'user' => $employee
-                ? [
-                    'id' => $employee->id,
-                    'name' => $employee->full_name,
-                    'username' => $employee->username,
-                    'email' => $employee->email,
-                    'photo' => $employee->profile_photo_path
-                        ? asset(
-                            'storage/' . $employee->profile_photo_path
-                        )
-                        : null,
-                ]
-                : null,
+            'auth' => [
+                'user' => $employee
+                    ? [
+                        'id' => $employee->id,
+                        'name' => $employee->full_name,
+                        'username' => $employee->username,
+                        'email' => $employee->email,
+                        'role_id' => $roleId !== null ? (int) $roleId : null,
+                        'photo' => $employee->profile_photo_path
+                            ? asset(
+                                'storage/'.$employee->profile_photo_path
+                            )
+                            : null,
+                        'segmentation_names' => $request->user()
+                        ->segmentation()
+                        ->with('segmentation')
+                        ->get()
+                        ->pluck('segmentation.name')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all(),
+                    ]
+                    : null,
 
-            'permissions' => $permissions,
-        ],
-    ];
-}
+                'permissions' => $permissions,
+            ],
+        ];
+    }
 }
