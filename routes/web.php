@@ -5,8 +5,11 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InquiryDetailController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\InquiryPrintController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\InquiryPrintController;
+use App\Http\Controllers\PrintTemplateController;
+use App\Http\Controllers\RoleManagementController;
+use App\Http\Controllers\SalesSignatureController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -17,136 +20,201 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
 
-Route::get('/', function () {
-    return redirect()->route('dashboard');
-});
-
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->name('dashboard');
-
-// Database Center
-Route::get(
-    '/database-center',
-    [CustomerController::class, 'index']
-)->name('database-center');
-// Customer Database
-Route::post(
-    '/database-center/customers',
-    [CustomerController::class, 'store']
-)->name('customers.store');
-Route::post(
-    '/database-center/customers/import',
-    [CustomerController::class, 'import']
-)->name('customers.import');
-Route::get(
-    '/database-center/customers/template',
-    [CustomerController::class, 'template']
-)->name('customers.template');
-Route::put(
-    '/database-center/customers/{customer}',
-    [CustomerController::class, 'update']
-)->name('customers.update');
-Route::delete(
-    '/database-center/customers/{customer}',
-    [CustomerController::class, 'destroy']
-)->name('customers.destroy');
-// Product Database
-Route::post(
-    '/products/import',
-    [ProductController::class, 'import']
-)->name('products.import');
-Route::get(
-    '/products/template',
-    [ProductController::class, 'template']
-)->name('products.template');
-Route::post(
-    '/products',
-    [ProductController::class, 'store']
-)->name('products.store');
-
-Route::put(
-    '/products/{product}',
-    [ProductController::class, 'update']
-)->name('products.update');
-
-Route::delete(
-    '/products/{product}',
-    [ProductController::class, 'destroy']
-)->name('products.destroy');
-// Competitor Product Database
-Route::prefix('competitors')
-    ->name('competitors.')
-    ->group(function () {
-        Route::post(
-            '/import',
-            [CompetitorController::class, 'import']
-        )->name('import');
+Route::middleware('auth')->group(function () {
+    Route::prefix('inquiries/print')->group(function () {
         Route::get(
-            '/template',
-            [CompetitorController::class, 'template']
-        )->name('template');
-        Route::post(
             '/',
-            [CompetitorController::class, 'store']
-        )->name('store');
-        Route::put(
-            '/products/{competitorProduct}',
-            [CompetitorController::class, 'update']
-        )->name('update');
+            [InquiryPrintController::class, 'index']
+        );
+        Route::get(
+            '/templates',
+            [PrintTemplateController::class, 'index']
+        );
+        Route::post(
+            '/templates',
+            [PrintTemplateController::class, 'store']
+        );
         Route::delete(
-            '/products/{competitorProduct}',
-            [CompetitorController::class, 'destroyProduct']
-        )->name('products.destroy');
-        Route::delete(
-            '/{competitor}',
-            [CompetitorController::class, 'destroy']
-        )->name('destroy');
+            '/templates/{printTemplate}',
+            [PrintTemplateController::class, 'destroy']
+        );
+        Route::get(
+            '/signatures',
+            [SalesSignatureController::class, 'index']
+        );
+        Route::post(
+            '/signatures',
+            [SalesSignatureController::class, 'store']
+        );
+        Route::get(
+            '/{id}/excel',
+            [InquiryPrintController::class, 'exportExcel']
+        )->whereNumber('id');
+    
+        Route::post(
+            '/{id}/word',
+            [InquiryPrintController::class, 'exportWord']
+        )->whereNumber('id');
+        Route::post(
+            '/{id}/pdf',
+            [InquiryPrintController::class, 'exportPdf']
+        )->whereNumber('id');
+        Route::get(
+            '/{id}',
+            [InquiryPrintController::class, 'show']
+        )->whereNumber('id');
     });
+    
+    Route::get('/', function () {
+        return redirect()->route('dashboard');
+    });
+    
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard');
+    })->name('dashboard');
+    
+    // Database Center
+    Route::get(
+        '/database-center',
+        [CustomerController::class, 'index']
+    )->name('database-center');
+    // Customer Database
+    Route::post(
+        '/database-center/customers',
+        [CustomerController::class, 'store']
+    )->name('customers.store');
+    Route::post(
+        '/database-center/customers/import',
+        [CustomerController::class, 'import']
+    )->name('customers.import');
+    Route::get(
+        '/database-center/customers/template',
+        [CustomerController::class, 'template']
+    )->name('customers.template');
+    Route::put(
+        '/database-center/customers/{customer}',
+        [CustomerController::class, 'update']
+    )->name('customers.update');
+    Route::delete(
+        '/database-center/customers/{customer}',
+        [CustomerController::class, 'destroy']
+    )->name('customers.destroy');
+    // Product Database
+    Route::post(
+        '/products/import',
+        [ProductController::class, 'import']
+    )->name('products.import');
+    Route::get(
+        '/products/template',
+        [ProductController::class, 'template']
+    )->name('products.template');
+    Route::post(
+        '/products',
+        [ProductController::class, 'store']
+    )->name('products.store');
+    
+    Route::put(
+        '/products/{product}',
+        [ProductController::class, 'update']
+    )->name('products.update');
+    
+    Route::delete(
+        '/products/{product}',
+        [ProductController::class, 'destroy']
+    )->name('products.destroy');
+    // Competitor Product Database
+    Route::prefix('competitors')
+        ->name('competitors.')
+        ->group(function () {
+            Route::post(
+                '/import',
+                [CompetitorController::class, 'import']
+            )->name('import');
+            Route::get(
+                '/template',
+                [CompetitorController::class, 'template']
+            )->name('template');
+            Route::post(
+                '/',
+                [CompetitorController::class, 'store']
+            )->name('store');
+            Route::put(
+                '/products/{competitorProduct}',
+                [CompetitorController::class, 'update']
+            )->name('update');
+            Route::delete(
+                '/products/{competitorProduct}',
+                [CompetitorController::class, 'destroyProduct']
+            )->name('products.destroy');
+            Route::delete(
+                '/{competitor}',
+                [CompetitorController::class, 'destroy']
+            )->name('destroy');
+        });
+    
+    // Inquiry Menu
+    Route::get(
+        '/inquiry',
+        [InquiryController::class, 'index']
+    )->name('inquiry');
+    Route::post(
+        '/inquiry',
+        [InquiryController::class, 'store']
+    )->name('inquiry.store');
+    Route::put(
+        '/inquiry/{inquiry}',
+        [InquiryController::class, 'update']
+    )->name('inquiry.update');
+    Route::delete(
+        '/inquiry/{inquiry}',
+        [InquiryController::class, 'destroy']
+    )->name('inquiry.destroy');
+    Route::post(
+        '/inquiry/{inquiry}/detail',
+        [InquiryDetailController::class, 'store']
+    )->name('inquiry-detail.store');
+    Route::put(
+        '/inquiry/detail/{detail}',
+        [InquiryDetailController::class, 'update']
+    )->name('inquiry-detail.update');
+    Route::delete(
+        '/inquiry/detail/{detail}',
+        [InquiryDetailController::class, 'destroy']
+    )->name('inquiry-detail.destroy');
+    Route::get(
+        '/inquiry-print/date-range',
+        [InquiryPrintController::class, 'index']
+    );
+    Route::get('/inquiry-print/date-range', [InquiryPrintController::class, 'index']);
+    Route::get('/inquiry-print/assets/{kind}/{id}/file', [InquiryPrintController::class, 'assetFile'])
+        ->whereIn('kind', ['templates', 'signatures'])->whereNumber('id');
+    Route::delete('/inquiry-print/assets/{kind}/{id}', [InquiryPrintController::class, 'deleteAsset'])
+        ->whereIn('kind', ['templates', 'signatures'])->whereNumber('id');
+    Route::get(
+        '/inquiry-print', [InquiryPrintController::class, 'page']
+    )->name('inquiry-print');
 
-// Inquiry Menu
-Route::get(
-    '/inquiry',
-    [InquiryController::class, 'index']
-)->name('inquiry');
-Route::post(
-    '/inquiry',
-    [InquiryController::class, 'store']
-)->name('inquiry.store');
-Route::put(
-    '/inquiry/{inquiry}',
-    [InquiryController::class, 'update']
-)->name('inquiry.update');
-Route::delete(
-    '/inquiry/{inquiry}',
-    [InquiryController::class, 'destroy']
-)->name('inquiry.destroy');
-Route::post(
-    '/inquiry/{inquiry}/detail',
-    [InquiryDetailController::class, 'store']
-)->name('inquiry-detail.store');
-Route::put(
-    '/inquiry/detail/{detail}',
-    [InquiryDetailController::class, 'update']
-)->name('inquiry-detail.update');
-Route::delete(
-    '/inquiry/detail/{detail}',
-    [InquiryDetailController::class, 'destroy']
-)->name('inquiry-detail.destroy');
-Route::get(
-    '/inquiry-print/date-range',
-    [InquiryPrintController::class, 'index']
-);
-Route::get('/inquiry-print/date-range', [InquiryPrintController::class, 'index']);
-Route::get('/inquiry-print/assets/{kind}/{id}/file', [InquiryPrintController::class, 'assetFile'])
-    ->whereIn('kind', ['templates', 'signatures'])->whereNumber('id');
-Route::delete('/inquiry-print/assets/{kind}/{id}', [InquiryPrintController::class, 'deleteAsset'])
-    ->whereIn('kind', ['templates', 'signatures'])->whereNumber('id');
+    //Role Management
+    Route::get(
+        '/role-management',
+        [RoleManagementController::class, 'index']
+    )->name('role-management');
 
-// Menu Print
-Route::get(
-    '/inquiry-print', [InquiryPrintController::class, 'page']
-)->name('inquiry-print');
+    Route::post(
+        '/role-management',
+        [RoleManagementController::class, 'store']
+    )->name('role-management.store');
+
+    Route::get(
+        '/role-management/{id}/edit',
+        [RoleManagementController::class, 'edit']
+    )->name('role-management.edit');
+
+    Route::put(
+        '/role-management/{id}',
+        [RoleManagementController::class, 'update']
+    )->name('role-management.update');
+});
 
 // Route::middleware('auth')->group(function () {
 //     Route::get('/dashboard', function () {

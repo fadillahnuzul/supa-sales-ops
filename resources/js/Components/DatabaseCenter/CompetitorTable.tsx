@@ -41,31 +41,31 @@ export default function CompetitorTable({
                 <table className="w-full min-w-[1000px] text-left text-sm">
                     <thead>
                         <tr className="border-b border-gray-200">
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 No
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Competitor
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Product
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Price Competitor
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Divisi
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Keterangan
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Aksi
                             </th>
                         </tr>
@@ -76,9 +76,7 @@ export default function CompetitorTable({
                             <tr>
                                 <td
                                     colSpan={7}
-                                    className="px-5 py-10 text-center text-gray-400"
-                                >
-                                    Belum ada data competitor.
+                                    className="px-3 py-4 text-center text-gray-400">Belum ada data competitor.
                                 </td>
                             </tr>
                         ) : (
@@ -93,24 +91,24 @@ export default function CompetitorTable({
                                         }
                                         className="border-b border-gray-100 last:border-0"
                                     >
-                                        <td className="px-5 py-4 text-gray-500">
+                                        <td className="px-3 py-1 text-gray-500">
                                             {index +
                                                 1}
                                         </td>
 
-                                        <td className="px-5 py-4 font-semibold">
+                                        <td className="px-3 py-1 font-semibold">
                                             {
                                                 item.competitor
                                             }
                                         </td>
 
-                                        <td className="px-5 py-4 text-emerald-800">
+                                        <td className="px-3 py-1 text-emerald-800">
                                             {
                                                 item.product
                                             }
                                         </td>
 
-                                        <td className="px-5 py-4 font-semibold">
+                                        <td className="px-3 py-1 font-semibold">
                                             {rupiah(
                                                 Number(
                                                     item.price
@@ -118,13 +116,13 @@ export default function CompetitorTable({
                                             )}
                                         </td>
 
-                                        <td className="px-5 py-4">
+                                        <td className="px-3 py-1">
                                             {
                                                 item.division
                                             }
                                         </td>
 
-                                        <td className="px-5 py-4">
+                                        <td className="px-3 py-1">
                                             <div>
                                                 {item.notes || '-'}
                                             </div>
@@ -134,7 +132,7 @@ export default function CompetitorTable({
                                             </div>
                                         </td>
 
-                                        <td className="px-5 py-4">
+                                        <td className="px-3 py-1">
                                             <div className="flex gap-2">
                                                 <button
                                                     type="button"

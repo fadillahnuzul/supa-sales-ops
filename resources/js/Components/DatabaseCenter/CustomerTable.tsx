@@ -58,39 +58,39 @@ export default function CustomerTable({
                 <table className="w-full min-w-[1100px] text-left text-sm">
                     <thead>
                         <tr className="border-b border-gray-200 text-gray-700">
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 No
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Company
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Address
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Segmentation
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Level
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Divisi
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Sterilisasi
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Narahubung
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Aksi
                             </th>
                         </tr>
@@ -105,11 +105,11 @@ export default function CustomerTable({
                                     }
                                     className="border-b border-gray-100 last:border-0"
                                 >
-                                    <td className="px-5 py-4 text-gray-500">
+                                    <td className="px-3 py-1 text-gray-500">
                                         {index + 1}
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <div className="font-semibold text-gray-900">
                                             {
                                                 customer.company
@@ -124,7 +124,7 @@ export default function CustomerTable({
                                         </div>
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <div className="flex items-start gap-2 text-gray-700">
                                             <MapPin
                                                 size={
@@ -139,7 +139,7 @@ export default function CustomerTable({
                                         </div>
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         {
                                             customer.segmentation ??
                                             '-'
@@ -148,7 +148,7 @@ export default function CustomerTable({
 
                                     <td
                                         className={`
-                                            px-5 py-4
+                                            px-3 py-1
                                             font-semibold
                                             ${riskColor(
                                                 customer.level
@@ -160,7 +160,7 @@ export default function CustomerTable({
                                         }
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <span
                                             className={`
                                                 rounded-md
@@ -178,11 +178,11 @@ export default function CustomerTable({
                                         </span>
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         {customer.sterilization}
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <div>
                                             {
                                                 customer.pic
@@ -196,7 +196,7 @@ export default function CustomerTable({
                                         </div>
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <div className="flex gap-3">
                                             <button
                                                 type="button"

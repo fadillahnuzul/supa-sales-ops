@@ -37,18 +37,19 @@ class HandleInertiaRequests extends Middleware
 {
     $employee = $request->user();
 
-    $permissions = $employee
-        ? [
-            'app.view',
-            'assets.view',
-            'inquiries.write',
-            'print.export',
-        ]
-        : [];
+    $permissions = $employee?->is_active
+    ? [
+        'app.view',
+        'assets.view',
+        'assets.manage',
+        'inquiries.write',
+        'print.export',
+    ]
+    : [];
 
-    if ($employee?->canManagePrintAssets()) {
-        $permissions[] = 'assets.manage';
-    }
+    // if ($employee?->canManagePrintAssets()) {
+    //     $permissions[] = 'assets.manage';
+    // }
 
     return [
         ...parent::share($request),

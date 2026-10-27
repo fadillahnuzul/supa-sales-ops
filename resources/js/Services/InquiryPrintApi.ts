@@ -1,8 +1,6 @@
 import axios from "axios";
 
-const api = axios.create({
-    baseURL: "/api",
-});
+const web = axios.create();
 
 export type InquiryPrintListItem = {
     id: number;
@@ -87,7 +85,7 @@ export async function uploadPrintTemplate(
 
 
     const response =
-        await api.post(
+        await web.post(
             '/inquiries/print/templates',
             formData,
             {
@@ -149,7 +147,7 @@ export async function uploadSalesSignature(
 
 
     const response =
-        await api.post(
+        await web.post(
             '/inquiries/print/signatures',
             formData,
             {
@@ -173,7 +171,7 @@ export async function fetchPrintInquiries(
     }
 ) {
     const response =
-        await api.get(
+        await web.get(
             "/inquiries/print",
             { params }
         );
@@ -185,7 +183,7 @@ export async function fetchPrintInquiry(
     id: number
 ) {
     const response =
-        await api.get(
+        await web.get(
             `/inquiries/print/${id}`
         );
 
@@ -194,7 +192,7 @@ export async function fetchPrintInquiry(
 
 export async function fetchPrintTemplates(): Promise<PrintTemplate[]> {
     const response =
-        await api.get(
+        await web.get(
             '/inquiries/print/templates'
         );
 
@@ -203,7 +201,7 @@ export async function fetchPrintTemplates(): Promise<PrintTemplate[]> {
 
 export async function fetchSalesSignatures(): Promise<SalesSignature[]> {
     const response =
-        await api.get(
+        await web.get(
             '/inquiries/print/signatures'
         );
 
@@ -214,7 +212,7 @@ export async function downloadInquiryExcel(
     id: number
 ) {
     const response =
-        await api.get(
+        await web.get(
             `/inquiries/print/${id}/excel`,
             {
                 responseType: "blob",
@@ -232,7 +230,7 @@ export async function downloadInquiryWord(
     payload: any
 ) {
     const response =
-        await api.post(
+        await web.post(
             `/inquiries/print/${id}/word`,
             payload,
             {
@@ -251,7 +249,7 @@ export async function downloadInquiryPdf(
     payload: any
 ) {
     const response =
-        await api.post(
+        await web.post(
             `/inquiries/print/${id}/pdf`,
             payload,
             {

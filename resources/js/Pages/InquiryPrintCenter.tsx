@@ -21,7 +21,7 @@ import AuthenticatedLayout
 import InquiryPrintFilter
     from './../Components/Inquiry/Print/InquiryPrintFilter';
 
-import InquiryPrintTable
+import InquiryPrintTable 
     from './../Components/Inquiry/Print/InquiryPrintTable';
 
 import {
@@ -456,12 +456,26 @@ export default function InquiryPrintCenter({ pics }: Props) {
                 );
             }
         } catch (error) {
-            console.error(
-                error
-            );
-            setPrintConfigError(
-                'Gagal memuat daftar template dan signature.'
-            );
+            const { default: axios } = await import('axios');
+
+            console.error('Error loadPrintConfig:', error);
+
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status ?? 'Network Error';
+                const url = error.config?.url ?? '';
+                const message = error.response?.data?.message
+                    || error.message;
+
+                setPrintConfigError(
+                    `Gagal memuat (${status}): ${message} — ${url}`
+                );
+            } else {
+                setPrintConfigError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Terjadi kesalahan saat membaca daftar.'
+                );
+            }
         }
     }
 
@@ -726,8 +740,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                             text-sm
                                             text-gray-500
                                         ">
-                                            Export Inquiry Form
-                                            dan customer quotation
+                                            Export Inquiry Form dan customer quotation
                                         </p>
                                     </div>
                                 </div>

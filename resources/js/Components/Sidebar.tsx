@@ -67,9 +67,11 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         },
         {
             label: 'Profil & Roles',
-            href: '#',
+            href: route('role-management'),
             icon: UserCog,
-            active: false,
+            active: route().current(
+                    'role-management'
+                ) === true,
         },
     ];
 

@@ -91,7 +91,6 @@ export default function InquiryPrintTable({
                                         }
                                     `}
                                 >
-
                                     <td className="p-3 text-center">
 
                                         <input

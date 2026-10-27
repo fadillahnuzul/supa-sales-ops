@@ -35,31 +35,31 @@ export default function ProductTable({
                 <table className="w-full min-w-[1000px] text-left text-sm">
                     <thead>
                         <tr className="border-b border-gray-200">
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 No
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Product Name
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Item Code
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Standard Price
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Material
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Grade
                             </th>
 
-                            <th className="px-5 py-4">
+                            <th className="px-3 py-2">
                                 Aksi
                             </th>
                         </tr>
@@ -72,23 +72,23 @@ export default function ProductTable({
                                     key={product.id}
                                     className="border-b border-gray-100 last:border-0"
                                 >
-                                    <td className="px-5 py-4 text-gray-500">
+                                    <td className="px-3 py-1 text-gray-500">
                                         {index + 1}
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <div className="font-semibold">
                                             {product.name}
                                         </div>
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <span className="rounded border border-gray-300 bg-gray-50 px-2 py-1 font-mono text-xs">
                                             {product.code}
                                         </span>
                                     </td>
 
-                                    <td className="px-5 py-4 font-semibold">
+                                    <td className="px-3 py-1 font-semibold">
                                         {rupiah(
                                             Number(
                                                 product.std_price
@@ -96,7 +96,7 @@ export default function ProductTable({
                                         )}
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <div className="flex flex-wrap gap-1.5">
                                             {product.materials?.length ? (
                                                 product.materials.map(
@@ -120,12 +120,12 @@ export default function ProductTable({
                                         </div>
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         {product.grade?.name ??
                                             '-'}
                                     </td>
 
-                                    <td className="px-5 py-4">
+                                    <td className="px-3 py-1">
                                         <div className="flex gap-3">
                                             <button
                                                 type="button"

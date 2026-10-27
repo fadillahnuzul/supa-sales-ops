@@ -69,6 +69,22 @@ interface DatabaseCenterProps {
     grades: GradeOption[];
 }
 
+function getInitialDatabaseTab(): DatabaseTab {
+    if (typeof window === 'undefined') {
+        return 'customer';
+    }
+
+    const tab = new URLSearchParams(
+        window.location.search
+    ).get('tab');
+
+    if (tab === 'product' || tab === 'competitor') {
+        return tab;
+    }
+
+    return 'customer';
+}
+
 
 /*
  * ================================
@@ -94,7 +110,7 @@ export default function DatabaseCenter({
         activeTab,
         setActiveTab,
     ] = useState<DatabaseTab>(
-        'customer'
+        getInitialDatabaseTab
     );
 
     const [
@@ -304,6 +320,20 @@ export default function DatabaseCenter({
         tab: DatabaseTab
     ) {
         setActiveTab(tab);
+
+        const url = new URL(window.location.href);
+
+        if (tab === 'customer') {
+            url.searchParams.delete('tab');
+        } else {
+            url.searchParams.set('tab', tab);
+        }
+
+        window.history.replaceState(
+            window.history.state,
+            '',
+            `${url.pathname}${url.search}${url.hash}`
+        );
 
         setSearch('');
         setCompetitorNameFilter('');
