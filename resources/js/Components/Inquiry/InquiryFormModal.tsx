@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { Inquiry } from '../../types/inquiry';
 
 interface CustomerOption {
     id: number;
@@ -17,9 +18,13 @@ interface PicOption {
 interface Props {
     open: boolean;
 
+    inquiry?: Inquiry | null;
+
     customers: CustomerOption[];
 
     pics: PicOption[];
+
+    defaultPicId?: number;
 
     onClose: () => void;
 }
@@ -69,8 +74,10 @@ const initialForm: InquiryFormState = {
 
 export default function InquiryFormModal({
     open,
+    inquiry = null,
     customers,
     pics,
+    defaultPicId,
     onClose,
 }: Props) {
     const [
@@ -79,15 +86,40 @@ export default function InquiryFormModal({
     ] = useState<InquiryFormState>(
         initialForm
     );
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        setErrors({});
+        setForm(inquiry
+            ? {
+                code: inquiry.code,
+                date: inquiry.date.slice(0, 10),
+                etd: inquiry.etd?.slice(0, 10) ?? '',
+                pic: inquiry.pic ?? '',
+                customerId: inquiry.customerId?.toString() ?? '',
+                shippingRate: inquiry.shippingRate?.toString() ?? '',
+                note: inquiry.note ?? '',
+            }
+            : {
+                ...initialForm,
+                pic: defaultPicId !== undefined
+                    && pics.some((pic) => Number(pic.id) === defaultPicId)
+                    ? defaultPicId
+                    : '',
+            });
+    }, [open, inquiry, defaultPicId, pics]);
 
     if (!open) {
         return null;
     }
 
     function resetForm() {
-        setForm(
-            initialForm
-        );
+        setForm(initialForm);
+        setErrors({});
     }
 
     function handleClose() {
@@ -101,57 +133,32 @@ export default function InquiryFormModal({
     ) {
         event.preventDefault();
 
-        router.post(
-            '/inquiry',
+        const payload = {
+            code: form.code,
+            date: form.date,
+            etd: form.etd || null,
+            pic: form.pic ? Number(form.pic) : null,
+            customer_id: form.customerId ? Number(form.customerId) : null,
+            shipping_rate: form.shippingRate ? Number(form.shippingRate) : null,
+            note: form.note || null,
+        };
 
-            {
-                code:
-                    form.code,
-
-                date:
-                    form.date,
-
-                etd:
-                    form.etd ||
-                    null,
-
-                pic:
-                    form.pic
-                        ? Number(
-                            form.pic
-                        )
-                        : null,
-
-                customer_id:
-                    form.customerId
-                        ? Number(
-                            form.customerId
-                        )
-                        : null,
-
-                shipping_rate:
-                    form.shippingRate
-                        ? Number(
-                            form.shippingRate
-                        )
-                        : null,
-
-                note:
-                    form.note ||
-                    null,
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                resetForm();
+                onClose();
             },
+            onError: (validationErrors: Record<string, string>) => {
+                setErrors(validationErrors);
+            },
+        };
 
-            {
-                preserveScroll:
-                    true,
-
-                onSuccess: () => {
-                    resetForm();
-
-                    onClose();
-                },
-            }
-        );
+        if (inquiry) {
+            router.put(`/inquiry/${inquiry.id}`, payload, options);
+        } else {
+            router.post('/inquiry', payload, options);
+        }
     }
 
     return (
@@ -190,7 +197,7 @@ export default function InquiryFormModal({
                 >
                     <div>
                         <h2 className="text-xl font-bold">
-                            Tambah Inquiry
+                            {inquiry ? 'Edit Inquiry' : 'Tambah Inquiry'}
                         </h2>
 
                         <p className="mt-1 text-sm text-gray-500">
@@ -230,6 +237,11 @@ export default function InquiryFormModal({
                         submit
                     }
                 >
+                    {Object.keys(errors).length > 0 && (
+                        <div role="alert" className="mx-6 mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {Object.values(errors).join(' ')}
+                        </div>
+                    )}
                     <div
                         className="
                             grid
@@ -520,7 +532,7 @@ export default function InquiryFormModal({
                                 hover:bg-[#146e4e]
                             "
                         >
-                            Simpan Inquiry
+                            {inquiry ? 'Simpan Perubahan' : 'Simpan Inquiry'}
                         </button>
                     </div>
                 </form>

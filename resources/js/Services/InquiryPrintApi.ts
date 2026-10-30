@@ -1,6 +1,23 @@
 import axios from "axios";
 
 const web = axios.create();
+let sessionExpiryRedirectStarted = false;
+
+web.interceptors.response.use(
+    (response) => response,
+    (error: unknown) => {
+        if (
+            axios.isAxiosError(error)
+            && error.response?.status === 419
+            && !sessionExpiryRedirectStarted
+        ) {
+            sessionExpiryRedirectStarted = true;
+            window.location.assign('/login?session_expired=1');
+        }
+
+        return Promise.reject(error);
+    }
+);
 
 export type InquiryPrintListItem = {
     id: number;
@@ -24,11 +41,15 @@ export type PrintTemplate = {
 };
 
 export type SalesSignature = {
-    id: number;
-    user_id?: number;
+    id: number | null;
+    user_id: number | null;
     name: string;
     division?: string;
     position?: string;
+};
+
+export type UploadedSalesSignature = Omit<SalesSignature, 'id'> & {
+    id: number;
 };
 
 export interface UploadTemplatePayload {
@@ -108,7 +129,7 @@ export async function uploadPrintTemplate(
 
 export async function uploadSalesSignature(
     payload: UploadSignaturePayload
-): Promise<SalesSignature> {
+): Promise<UploadedSalesSignature> {
     const formData =
         new FormData();
 
@@ -157,6 +178,36 @@ export async function uploadSalesSignature(
                 },
             }
         );
+
+    return response.data;
+}
+
+export async function updateSalesSignature(
+    id: number,
+    payload: Omit<UploadSignaturePayload, 'user_id' | 'signature'> & {
+        signature?: File;
+    }
+): Promise<UploadedSalesSignature> {
+    const formData = new FormData();
+
+    formData.append('_method', 'PATCH');
+    formData.append('name', payload.name);
+    formData.append('division', payload.division ?? '');
+    formData.append('position', payload.position ?? '');
+
+    if (payload.signature) {
+        formData.append('signature', payload.signature);
+    }
+
+    const response = await web.post(
+        `/inquiries/print/signatures/${id}`,
+        formData,
+        {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        }
+    );
 
     return response.data;
 }
@@ -240,7 +291,10 @@ export async function downloadInquiryWord(
 
     downloadBlob(
         response.data,
-        `QUOTATION_${id}.docx`
+        getDownloadFilename(
+            response.headers['content-disposition'],
+            `QUOTATION_${id}.docx`
+        )
     );
 }
 
@@ -259,10 +313,32 @@ export async function downloadInquiryPdf(
 
     downloadBlob(
         response.data,
-        `QUOTATION_${id}.pdf`
+        getDownloadFilename(
+            response.headers['content-disposition'],
+            `QUOTATION_${id}.pdf`
+        )
     );
 }
 
+function getDownloadFilename(
+    contentDisposition: string | undefined,
+    fallback: string
+): string {
+    if (!contentDisposition) {
+        return fallback;
+    }
+
+    const encodedFilename = contentDisposition.match(
+        /filename\*=UTF-8''([^;]+)/i
+    )?.[1];
+    let filename = encodedFilename
+        ? decodeURIComponent(encodedFilename.trim())
+        : contentDisposition.match(/filename="?([^";]+)"?/i)?.[1];
+
+    filename = filename?.split(/[\\/]/).pop()?.trim();
+
+    return filename || fallback;
+}
 
 function downloadBlob(
     data: Blob,

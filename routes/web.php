@@ -6,6 +6,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InquiryDetailController;
 use App\Http\Controllers\InquiryPrintController;
+use App\Http\Controllers\JobOrderController;
 use App\Http\Controllers\PrintTemplateController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RoleManagementController;
@@ -45,6 +46,10 @@ Route::middleware('auth')->group(function () {
             '/signatures',
             [SalesSignatureController::class, 'store']
         );
+        Route::patch(
+            '/signatures/{id}',
+            [SalesSignatureController::class, 'update']
+        )->whereNumber('id');
         Route::get(
             '/{id}/excel',
             [InquiryPrintController::class, 'exportExcel']
@@ -190,13 +195,38 @@ Route::middleware('auth')->group(function () {
     Route::delete('/inquiry-print/assets/{kind}/{id}', [InquiryPrintController::class, 'deleteAsset'])
         ->whereIn('kind', ['templates', 'signatures'])->whereNumber('id');
     Route::get(
-        '/inquiry-print', [InquiryPrintController::class, 'page']
+        '/inquiry-print',
+        [InquiryPrintController::class, 'page']
     )->name('inquiry-print');
 
-    //Menu User Password
+    // Menu User Password
     Route::get(
-        '/profile-settings', [InquiryPrintController::class, 'page']
+        '/profile-settings',
+        [InquiryPrintController::class, 'page']
     )->name('profile-settings');
+
+    Route::get('/signature-settings', [SalesSignatureController::class, 'settings'])
+        ->name('signature-settings');
+    Route::post('/signature-settings', [SalesSignatureController::class, 'storeForCurrentUser'])
+        ->name('signature-settings.store');
+    Route::get('/signature-settings/signatures/{id}/file', [SalesSignatureController::class, 'file'])
+        ->whereNumber('id')
+        ->name('signature-settings.file');
+
+    // Job Orders
+    Route::prefix('job-orders')->name('job-orders.')->group(function () {
+        Route::get('/', [JobOrderController::class, 'page'])->name('page');
+        Route::get('/list', [JobOrderController::class, 'index'])->name('list');
+        Route::get('/inquiry/{id}', [JobOrderController::class, 'showInquiry'])->whereNumber('id');
+        Route::post('/', [JobOrderController::class, 'store'])->name('store');
+        Route::post('/bulk-approve', [JobOrderController::class, 'bulkApprove']);
+        Route::post('/{id}/approve', [JobOrderController::class, 'approve'])->whereNumber('id');
+        Route::post('/bulk-check', [JobOrderController::class, 'bulkCheck']);
+        Route::post('/{id}/check', [JobOrderController::class, 'check'])->whereNumber('id');
+        Route::get('/{id}/print', [JobOrderController::class, 'print'])->whereNumber('id');
+        Route::get('/{id}', [JobOrderController::class, 'show'])->whereNumber('id');
+        Route::put('/{id}', [JobOrderController::class, 'update'])->whereNumber('id');
+    });
 
     Route::middleware('can:manage-role-management')->group(function () {
         // Role Management

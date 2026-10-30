@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import {
     useMemo,
@@ -10,10 +10,17 @@ import AuthenticatedLayout from '../Layouts/AuthenticatedLayout';
 import InquiryHeader from '../Components/Inquiry/InquiryHeader';
 import InquiryTable from '../Components/Inquiry/InquiryTable';
 import InquiryFormModal from '../Components/Inquiry/InquiryFormModal';
+import {
+    downloadInquiryExcel,
+    downloadInquiryPdf,
+    fetchPrintTemplates,
+    fetchSalesSignatures,
+} from '../Services/InquiryPrintApi';
 
 import type {
     Inquiry as InquiryType,
 } from '../types/inquiry';
+import type { PageProps } from '../types';
 
 export interface CustomerOption {
     id: number;
@@ -69,6 +76,7 @@ export default function Inquiry({
     grades,
     competitorPrices,
 }: Props) {
+    const { auth } = usePage<PageProps>().props;
     const [
         search,
         setSearch,
@@ -85,6 +93,7 @@ export default function Inquiry({
         inquiryModal,
         setInquiryModal,
     ] = useState(false);
+    const [editingInquiry, setEditingInquiry] = useState<InquiryType | null>(null);
 
     /*
     |--------------------------------------------------------------------------
@@ -161,6 +170,55 @@ export default function Inquiry({
         );
     }
 
+    async function handleDownloadExcel(inquiryId: number) {
+        try {
+            await downloadInquiryExcel(inquiryId);
+        } catch (error) {
+            console.error('Download inquiry Excel failed:', error);
+            window.alert('Gagal mengunduh file Excel inquiry. Silakan coba lagi.');
+        }
+    }
+
+    async function handleDownloadPdf(inquiry: InquiryType) {
+        try {
+            const [templates, signatures] = await Promise.all([
+                fetchPrintTemplates(),
+                fetchSalesSignatures(),
+            ]);
+            const template = templates.find((item) => item.is_default) ?? templates[0];
+
+            if (!template) {
+                window.alert('Template quotation belum tersedia. Tambahkan template di halaman Print terlebih dahulu.');
+                return;
+            }
+
+            const signature = signatures.find(
+                (item) => inquiry.pic !== null && Number(item.user_id) === Number(inquiry.pic)
+            );
+            const quotationDate = new Date().toISOString().slice(0, 10);
+
+            await downloadInquiryPdf(inquiry.id, {
+                template_id: template.id,
+                signature_id: signature?.id ?? null,
+                signature_user_id: inquiry.pic,
+                quotation_date: quotationDate,
+            });
+        } catch (error) {
+            console.error('Download inquiry PDF failed:', error);
+            window.alert('Gagal membuat PDF inquiry. Periksa konfigurasi template di halaman Print dan coba lagi.');
+        }
+    }
+
+    function openCreateModal() {
+        setEditingInquiry(null);
+        setInquiryModal(true);
+    }
+
+    function openEditModal(inquiry: InquiryType) {
+        setEditingInquiry(inquiry);
+        setInquiryModal(true);
+    }
+
     return (
         <>
             <Head title="Inquiry" />
@@ -171,11 +229,7 @@ export default function Inquiry({
 
                         {/* HEADER */}
                         <InquiryHeader
-                            onAdd={() =>
-                                setInquiryModal(
-                                    true
-                                )
-                            }
+                            onAdd={openCreateModal}
                         />
 
                         {/* SEARCH */}
@@ -253,6 +307,12 @@ export default function Inquiry({
                             competitorPrices={
                                 competitorPrices
                             }
+
+                            onEdit={openEditModal}
+
+                            onExcel={handleDownloadExcel}
+
+                            onPdf={handleDownloadPdf}
                         />
 
                     </div>
@@ -264,6 +324,8 @@ export default function Inquiry({
                         inquiryModal
                     }
 
+                    inquiry={editingInquiry}
+
                     customers={
                         customers
                     }
@@ -272,11 +334,12 @@ export default function Inquiry({
                         pics
                     }
 
-                    onClose={() =>
-                        setInquiryModal(
-                            false
-                        )
-                    }
+                    defaultPicId={auth.user?.id}
+
+                    onClose={() => {
+                        setInquiryModal(false);
+                        setEditingInquiry(null);
+                    }}
                 />
             </AuthenticatedLayout>
         </>

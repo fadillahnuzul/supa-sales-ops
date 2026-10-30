@@ -1,6 +1,9 @@
 import {
     ChevronDown,
     ChevronRight,
+    FileText,
+    Sheet,
+    SquarePen,
 } from 'lucide-react';
 
 import InquiryDetailTable from './InquiryDetailTable';
@@ -44,7 +47,7 @@ interface CompetitorPrice {
 
     date: string | null;
 
-    note?: string | null; 
+    note?: string | null;
 }
 
 /*
@@ -59,12 +62,18 @@ interface Props {
     open: boolean;
 
     onToggle: () => void;
- 
+
     products: ProductOption[];
 
     grades: GradeOption[];
 
     competitorPrices: CompetitorPrice[];
+
+    onEdit: (inquiry: Inquiry) => void;
+
+    onExcel: (inquiryId: number) => void;
+
+    onPdf: (inquiry: Inquiry) => void;
 }
 
 /*
@@ -111,6 +120,9 @@ export default function InquiryAccordion({
     grades,
 
     competitorPrices,
+    onEdit,
+    onExcel,
+    onPdf,
 }: Props) {
     return (
         <>
@@ -128,7 +140,7 @@ export default function InquiryAccordion({
                 "
             >
                 {/* EXPAND */}
-                <td className="px-4 py-4">
+                <td className="px-2 py-2">
                     {open ? (
                         <ChevronDown
                             size={
@@ -145,21 +157,21 @@ export default function InquiryAccordion({
                 </td>
 
                 {/* CODE */}
-                <td className="px-4 py-4 font-semibold text-gray-900">
+                <td className="px-2 py-2 font-semibold text-gray-900">
                     {
                         inquiry.code
                     }
                 </td>
 
                 {/* DATE */}
-                <td className="whitespace-nowrap px-4 py-4 text-gray-600">
+                <td className="whitespace-nowrap px-2 py-2 text-gray-600">
                     {
                         inquiry.date
                     }
                 </td>
 
                 {/* ETD */}
-                <td className="whitespace-nowrap px-4 py-4 text-gray-600">
+                <td className="whitespace-nowrap px-2 py-2 text-gray-600">
                     {
                         inquiry.etd ??
                         '-'
@@ -167,7 +179,7 @@ export default function InquiryAccordion({
                 </td>
 
                 {/* PIC SALES */}
-                <td className="px-4 py-4">
+                <td className="px-2 py-2">
                     {
                         inquiry
                             .picUser
@@ -177,7 +189,7 @@ export default function InquiryAccordion({
                 </td>
 
                 {/* CUSTOMER */}
-                <td className="px-4 py-4 font-medium text-gray-800">
+                <td className="px-2 py-2 font-medium text-gray-800">
                     {
                         inquiry
                             .customer
@@ -187,14 +199,14 @@ export default function InquiryAccordion({
                 </td>
 
                 {/* SHIPPING RATE */}
-                <td className="whitespace-nowrap px-4 py-4 text-gray-600">
+                <td className="whitespace-nowrap px-2 py-2 text-gray-600">
                     {formatPrice(
                         inquiry.shippingRate
                     )}
                 </td>
 
                 {/* NOTE */}
-                <td className="max-w-[260px] px-4 py-4 text-gray-600">
+                <td className="max-w-[260px] px-2 py-2 text-gray-600">
                     <div
                         className="
                             truncate
@@ -212,28 +224,55 @@ export default function InquiryAccordion({
                 </td>
 
                 {/* DETAIL COUNT */}
-                <td className="px-4 py-4 text-center">
-                    <span
-                        className="
-                            inline-flex
-                            min-w-[28px]
-                            items-center
-                            justify-center
-                            rounded-full
-                            bg-emerald-50
-                            px-2
-                            py-1
-                            text-xs
-                            font-semibold
-                            text-emerald-700
-                        "
-                    >
+                <td className="px-2 py-2 text-center">
+                    <span className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
                         {
                             inquiry
                                 .details
                                 .length
                         }
                     </span>
+                </td>
+
+                <td className="px-2 py-2 text-center">
+                    <div className="flex">
+                        <button
+                            type="button"
+                            title="Edit"
+                            aria-label={`Edit inquiry ${inquiry.code}`}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onEdit(inquiry);
+                            }}
+                            className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700"
+                        >
+                            <SquarePen size={16} />
+                        </button>
+                        <button
+                            type="button"
+                            title="Print Excel"
+                            aria-label={`Download Excel inquiry ${inquiry.code}`}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onExcel(inquiry.id);
+                            }}
+                            className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                        >
+                            <Sheet size={16} />
+                        </button>
+                        <button
+                            type="button"
+                            title="Print PDF"
+                            aria-label={`Download PDF inquiry ${inquiry.code}`}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onPdf(inquiry);
+                            }}
+                            className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700"
+                        >
+                            <FileText size={16}  />
+                        </button>
+                    </div>
                 </td>
             </tr>
 

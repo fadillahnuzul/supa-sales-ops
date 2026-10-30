@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Sales\PrintTemplateModel;
 use App\Models\Sales\SalesSignatureModel;
 use App\Services\InquiryPrintService;
+use App\Support\SignatureStampComposer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,8 +20,6 @@ use PhpOffice\PhpWord\TemplateProcessor;
 use Symfony\Component\Process\Exception\ProcessStartFailedException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
-use Illuminate\Support\Facades\Gate;
-
 
 class InquiryPrintController extends Controller
 {
@@ -66,72 +66,76 @@ class InquiryPrintController extends Controller
 
     protected InquiryPrintService $printService;
 
+    protected SignatureStampComposer $signatureStampComposer;
+
     public function __construct(
-        InquiryPrintService $printService
+        InquiryPrintService $printService,
+        SignatureStampComposer $signatureStampComposer
     ) {
         $this->printService = $printService;
+        $this->signatureStampComposer = $signatureStampComposer;
     }
 
     public function index(Request $request)
-{
-    $request->validate([
-        'start_date' => ['nullable', 'date_format:Y-m-d'],
-        'end_date' => [
-            'nullable',
-            'date_format:Y-m-d',
-            'after_or_equal:start_date'
-        ],
-    ]);
+    {
+        $request->validate([
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'after_or_equal:start_date',
+            ],
+        ]);
 
-    $employeeId = $request->user()->id;
+        $employeeId = $request->user()->id;
 
-    $segmentationIds = DB::table(
-        'core.employee_segmentations'
-    )
-        ->where('employee_id', $employeeId)
-        ->pluck('segmentation_id')
-        ->all();
-
-    $query = DB::table('sales.inquiries as i')
-        ->leftJoin(
-            'core.customers as c',
-            'c.id',
-            '=',
-            'i.customer_id'
+        $segmentationIds = DB::table(
+            'core.employee_segmentations'
         )
-        ->leftJoin(
-            'sales.inquiry_details as d',
-            'd.inquiry_id',
-            '=',
-            'i.id'
-        )
-        ->leftJoin(
-            'core.employees as e',
-            'e.id',
-            '=',
-            'i.pic'
-        )
-        ->whereNull('i.deleted_at')
+            ->where('employee_id', $employeeId)
+            ->pluck('segmentation_id')
+            ->all();
 
-        ->whereExists(function ($subquery) use ($segmentationIds) {
-            $subquery
-                ->selectRaw('1')
-                ->from('core.employee_segmentations as es')
-                ->whereColumn('es.employee_id', 'i.pic')
-                ->whereIn('es.segmentation_id', $segmentationIds);
-        })
+        $query = DB::table('sales.inquiries as i')
+            ->leftJoin(
+                'core.customers as c',
+                'c.id',
+                '=',
+                'i.customer_id'
+            )
+            ->leftJoin(
+                'sales.inquiry_details as d',
+                'd.inquiry_id',
+                '=',
+                'i.id'
+            )
+            ->leftJoin(
+                'core.employees as e',
+                'e.id',
+                '=',
+                'i.pic'
+            )
+            ->whereNull('i.deleted_at')
 
-        ->select([
-            'i.id',
-            'i.code',
-            'i.date',
-            'i.pic as pic_id',
-            'e.first_name as pic_first_name',
-            'c.name as customer_name',
+            ->whereExists(function ($subquery) use ($segmentationIds) {
+                $subquery
+                    ->selectRaw('1')
+                    ->from('core.employee_segmentations as es')
+                    ->whereColumn('es.employee_id', 'i.pic')
+                    ->orWhereIn('es.segmentation_id', $segmentationIds);
+            })
 
-            DB::raw('COUNT(d.id) as total_items'),
+            ->select([
+                'i.id',
+                'i.code',
+                'i.date',
+                'i.pic as pic_id',
+                'e.first_name as pic_first_name',
+                'c.name as customer_name',
 
-            DB::raw("
+                DB::raw('COUNT(d.id) as total_items'),
+
+                DB::raw("
                 CASE
                     WHEN e.id IS NULL THEN NULL
                     ELSE TRIM(
@@ -143,58 +147,58 @@ class InquiryPrintController extends Controller
                     )
                 END as pic_name
             "),
-        ])
-        ->groupBy(
-            'i.id',
-            'i.code',
-            'i.date',
-            'i.pic',
-            'c.name',
-            'e.id',
-            'e.first_name',
-            'e.last_name'
-        );
-
-    $start = $request->input('start_date')
-        ?: now()->startOfMonth()->toDateString();
-
-    $end = $request->input('end_date')
-        ?: now()->endOfMonth()->toDateString();
-
-    abort_if(
-        $start > $end,
-        422,
-        'Rentang tanggal tidak valid.'
-    );
-
-    $query
-        ->where(
-            'i.date',
-            '>=',
-            Carbon::parse($start)->startOfDay()
-        )
-        ->where(
-            'i.date',
-            '<',
-            Carbon::parse($end)->addDay()->startOfDay()
-        );
-
-    if ($request->filled('search')) {
-        $search = '%' . strtolower($request->search) . '%';
-
-        $query->where(function ($q) use ($search) {
-            $q->whereRaw(
-                'LOWER(i.code) LIKE ?',
-                [$search]
+            ])
+            ->groupBy(
+                'i.id',
+                'i.code',
+                'i.date',
+                'i.pic',
+                'c.name',
+                'e.id',
+                'e.first_name',
+                'e.last_name'
             );
 
-            $q->orWhereRaw(
-                'LOWER(c.name) LIKE ?',
-                [$search]
+        $start = $request->input('start_date')
+            ?: now()->startOfMonth()->toDateString();
+
+        $end = $request->input('end_date')
+            ?: now()->endOfMonth()->toDateString();
+
+        abort_if(
+            $start > $end,
+            422,
+            'Rentang tanggal tidak valid.'
+        );
+
+        $query
+            ->where(
+                'i.date',
+                '>=',
+                Carbon::parse($start)->startOfDay()
+            )
+            ->where(
+                'i.date',
+                '<',
+                Carbon::parse($end)->addDay()->startOfDay()
             );
 
-            $q->orWhereRaw(
-                "
+        if ($request->filled('search')) {
+            $search = '%'.strtolower($request->search).'%';
+
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw(
+                    'LOWER(i.code) LIKE ?',
+                    [$search]
+                );
+
+                $q->orWhereRaw(
+                    'LOWER(c.name) LIKE ?',
+                    [$search]
+                );
+
+                $q->orWhereRaw(
+                    "
                 LOWER(
                     CONCAT(
                         COALESCE(e.first_name, ''),
@@ -203,18 +207,18 @@ class InquiryPrintController extends Controller
                     )
                 ) LIKE ?
                 ",
-                [$search]
-            );
-        });
-    }
+                    [$search]
+                );
+            });
+        }
 
-    return response()->json(
-        $query
-            ->orderByDesc('i.date')
-            ->orderByDesc('i.id')
-            ->paginate(20)
-    );
-}
+        return response()->json(
+            $query
+                ->orderByDesc('i.date')
+                ->orderByDesc('i.id')
+                ->paginate(20)
+        );
+    }
 
     public function assetFile(string $kind, int $id)
     {
@@ -247,6 +251,7 @@ class InquiryPrintController extends Controller
                 415,
                 'Format gambar signature tidak didukung.'
             );
+
             return response()->file(
                 $absolutePath,
                 array_merge($headers, [
@@ -271,11 +276,13 @@ class InquiryPrintController extends Controller
         Gate::authorize('delete', $asset);
         // Archive instead of breaking existing quotation references.
         $asset->is_active = false;
-        if ($kind === 'templates') $asset->is_default = false;
+        if ($kind === 'templates') {
+            $asset->is_default = false;
+        }
         $asset->save();
+
         return response()->noContent();
     }
-
 
     public function show(int $id)
     {
@@ -302,7 +309,7 @@ class InquiryPrintController extends Controller
 
         if (! file_exists($templatePath)) {
             $templatePath = storage_path(
-                'app/' . $templateRelativePath
+                'app/'.$templateRelativePath
             );
         }
 
@@ -438,16 +445,16 @@ class InquiryPrintController extends Controller
         );
 
         $fileName =
-            'INQUIRY_FORM_' .
+            'INQUIRY_FORM_'.
             preg_replace(
                 '/[^A-Za-z0-9_-]/',
                 '_',
                 $inquiry->code
-            ) .
+            ).
             '.xlsx';
 
         $tempPath = storage_path(
-            'app/temp/' . $fileName
+            'app/temp/'.$fileName
         );
 
         if (! is_dir(dirname($tempPath))) {
@@ -489,6 +496,11 @@ class InquiryPrintController extends Controller
                 'integer',
             ],
 
+            'signature_user_id' => [
+                'nullable',
+                'integer',
+            ],
+
             'quotation_date' => [
                 'nullable',
                 'date',
@@ -503,7 +515,7 @@ class InquiryPrintController extends Controller
 
         $data =
             $this->printService
-            ->getFullInquiry($id);
+                ->getFullInquiry($id);
 
         $inquiry =
             $data['inquiry'];
@@ -524,9 +536,9 @@ class InquiryPrintController extends Controller
 
         $templatePath =
             Storage::disk('local')
-            ->path(
-                $template->file_path
-            );
+                ->path(
+                    $template->file_path
+                );
 
         if (! file_exists($templatePath)) {
             abort(
@@ -600,24 +612,29 @@ class InquiryPrintController extends Controller
             $processor->deleteRow('no');
         }
 
-        $this->applySignature(
+        $signatureImagePath = $this->applySignature(
             $processor,
             $request->filled('signature_id')
                 ? (int) $request->input('signature_id')
                 : null,
-            $inquiry->pic ?? ''
+            $request->filled('signature_user_id')
+                ? (int) $request->input('signature_user_id')
+                : null,
+            isset($inquiry->pic) ? (int) $inquiry->pic : null,
+            $inquiry->pic_name ?? ''
         );
 
-        $safeCode =
-            preg_replace(
-                '/[^A-Za-z0-9_-]/',
-                '_',
-                $inquiry->code
-            );
+        $safeCode = preg_replace(
+            '/[^A-Za-z0-9_-]/',
+            '_',
+            $inquiry->code
+        ) ?: 'inquiry';
 
         $fileName =
-            'QUOTATION_' .
-            $inquiry->code .
+            'QUOTATION_'.
+            $safeCode.
+            '_'.
+            Carbon::parse($inquiry->date)->format('d-m-Y').
             '.docx';
 
         $tempDir =
@@ -634,14 +651,17 @@ class InquiryPrintController extends Controller
         }
 
         $outputPath =
-            $tempDir .
-            DIRECTORY_SEPARATOR .
+            $tempDir.
+            DIRECTORY_SEPARATOR.
             $fileName;
 
-        $processor
-            ->saveAs(
-                $outputPath
-            );
+        try {
+            $processor->saveAs($outputPath);
+        } finally {
+            if ($signatureImagePath !== null && is_file($signatureImagePath)) {
+                unlink($signatureImagePath);
+            }
+        }
 
         return response()
             ->download(
@@ -666,12 +686,17 @@ class InquiryPrintController extends Controller
                 'integer',
             ],
 
+            'signature_user_id' => [
+                'nullable',
+                'integer',
+            ],
+
             'quotation_date' => 'nullable|date',
         ]);
 
         $data =
             $this->printService
-            ->getFullInquiry($id);
+                ->getFullInquiry($id);
 
         $inquiry =
             $data['inquiry'];
@@ -686,9 +711,9 @@ class InquiryPrintController extends Controller
 
         $templatePath =
             Storage::disk('local')
-            ->path(
-                $template->file_path
-            );
+                ->path(
+                    $template->file_path
+                );
 
         if (! file_exists($templatePath)) {
             abort(
@@ -760,12 +785,16 @@ class InquiryPrintController extends Controller
             $rows
         );
 
-        $this->applySignature(
+        $signatureImagePath = $this->applySignature(
             $processor,
             $request->filled('signature_id')
                 ? (int) $request->input('signature_id')
                 : null,
-            $inquiry->pic ?? ''
+            $request->filled('signature_user_id')
+                ? (int) $request->input('signature_user_id')
+                : null,
+            isset($inquiry->pic) ? (int) $inquiry->pic : null,
+            $inquiry->pic_name ?? ''
         );
 
         $tempDir =
@@ -779,27 +808,37 @@ class InquiryPrintController extends Controller
             );
         }
 
+        $safeCode = preg_replace(
+            '/[^A-Za-z0-9_-]/',
+            '_',
+            $inquiry->code
+        ) ?: 'inquiry';
+
         $fileBase =
-            'QUOTATION_' .
-            $inquiry->code .
-            '_' .
-            Str::uuid();
+            'QUOTATION_'.
+            $safeCode.
+            '_'.
+            Carbon::parse($inquiry->date)->format('d-m-Y');
 
         $docxPath =
-            $tempDir .
-            DIRECTORY_SEPARATOR .
-            $fileBase .
+            $tempDir.
+            DIRECTORY_SEPARATOR.
+            $fileBase.
             '.docx';
 
         $profileDirectory =
-            $tempDir .
-            DIRECTORY_SEPARATOR .
-            'libreoffice-profile-' .
+            $tempDir.
+            DIRECTORY_SEPARATOR.
+            'libreoffice-profile-'.
             Str::uuid();
 
-        $processor->saveAs(
-            $docxPath
-        );
+        try {
+            $processor->saveAs($docxPath);
+        } finally {
+            if ($signatureImagePath !== null && is_file($signatureImagePath)) {
+                unlink($signatureImagePath);
+            }
+        }
 
         if (
             ! mkdir(
@@ -824,7 +863,7 @@ class InquiryPrintController extends Controller
         $profileUri =
             (PHP_OS_FAMILY === 'Windows'
                 ? 'file:///'
-                : 'file://') .
+                : 'file://').
             str_replace(
                 ' ',
                 '%20',
@@ -837,7 +876,7 @@ class InquiryPrintController extends Controller
             '--nologo',
             '--nodefault',
             '--nofirststartwizard',
-            '-env:UserInstallation=' . $profileUri,
+            '-env:UserInstallation='.$profileUri,
             '--convert-to',
             'pdf',
             '--outdir',
@@ -896,9 +935,9 @@ class InquiryPrintController extends Controller
         }
 
         $pdfPath =
-            $tempDir .
-            DIRECTORY_SEPARATOR .
-            $fileBase .
+            $tempDir.
+            DIRECTORY_SEPARATOR.
+            $fileBase.
             '.pdf';
 
         if (! file_exists($pdfPath)) {
@@ -924,7 +963,7 @@ class InquiryPrintController extends Controller
         return response()
             ->download(
                 $pdfPath,
-                $fileBase . '.pdf'
+                $fileBase.'.pdf'
             )
             ->deleteFileAfterSend(true);
     }
@@ -932,20 +971,83 @@ class InquiryPrintController extends Controller
     private function applySignature(
         TemplateProcessor $processor,
         ?int $signatureId,
+        ?int $signatureUserId,
+        ?int $fallbackEmployeeId,
         ?string $fallbackName = null
-    ): void {
-        if ($signatureId === null) {
-            $processor->setValue('signature', '');
-            $processor->setValue('sales_name', $fallbackName ?? '');
-            $processor->setValue('sales_position', '');
-            $processor->setValue('sales_division', '');
+    ): ?string {
+        $signature = null;
 
-            return;
+        if ($signatureId !== null) {
+            $signature = SalesSignatureModel::query()
+                ->where('is_active', true)
+                ->findOrFail($signatureId);
+
+            if ($signatureUserId !== null) {
+                abort_unless(
+                    (int) $signature->user_id === $signatureUserId,
+                    422,
+                    'Signature tidak sesuai dengan sales yang dipilih.'
+                );
+            }
+
+            $signatureUserId = $signature->user_id !== null
+                ? (int) $signature->user_id
+                : null;
+        } elseif ($signatureUserId !== null) {
+            $signature = SalesSignatureModel::query()
+                ->where('user_id', $signatureUserId)
+                ->where('is_active', true)
+                ->latest('id')
+                ->first();
         }
 
-        $signature = SalesSignatureModel::query()
-            ->where('is_active', true)
-            ->findOrFail($signatureId);
+        $employeeId = $signatureUserId
+            ?? ($signatureId === null ? $fallbackEmployeeId : null);
+        $employee = null;
+
+        if ($employeeId !== null) {
+            abort_unless(
+                $this->isEligibleSignatureEmployee($employeeId),
+                422,
+                'Sales yang dipilih tidak terdaftar sebagai sales atau PIC inquiry.'
+            );
+
+            $employee = DB::table('core.employees')
+                ->where('id', $employeeId)
+                ->whereNull('deleted_at')
+                ->selectRaw("
+                    TRIM(
+                        CONCAT(
+                            COALESCE(first_name, ''),
+                            ' ',
+                            COALESCE(last_name, '')
+                        )
+                    ) as full_name
+                ")
+                ->first();
+        }
+
+        $employeeName = trim((string) ($employee->full_name ?? ''));
+        $salesName = $employeeName !== ''
+            ? $employeeName
+            : ($signature->name ?? $fallbackName ?? '');
+        $salesPosition = trim((string) ($signature->position ?? ''));
+
+        $processor->setValue('sales_name', $salesName);
+        $processor->setValue('sales_position', $salesPosition);
+        $processor->setValue('sales_division', $signature->division ?? '');
+
+        if ($signature === null) {
+            $stampPath = $this->signatureStampComposer->compose(null);
+            $processor->setImageValue('signature', [
+                'path' => $stampPath,
+                'width' => 160,
+                'height' => 160,
+                'ratio' => true,
+            ]);
+
+            return $stampPath;
+        }
 
         $signaturePath = Storage::disk('local')
             ->path($signature->signature_path);
@@ -959,16 +1061,36 @@ class InquiryPrintController extends Controller
             abort(404, 'File signature tidak ditemukan.');
         }
 
+        $stampedSignaturePath = $this->signatureStampComposer->compose($signaturePath);
         $processor->setImageValue('signature', [
-            'path' => $signaturePath,
+            'path' => $stampedSignaturePath,
             'width' => 160,
             'height' => 160,
             'ratio' => true,
         ]);
 
-        $processor->setValue('sales_name', $signature->name);
-        $processor->setValue('sales_position', $signature->position ?? '');
-        $processor->setValue('sales_division', $signature->division ?? '');
+        return $stampedSignaturePath;
+    }
+
+    private function isEligibleSignatureEmployee(int $employeeId): bool
+    {
+        return DB::table('core.employees as e')
+            ->where('e.id', $employeeId)
+            ->whereNull('e.deleted_at')
+            ->where(function ($query): void {
+                $query->whereExists(function ($roles): void {
+                    $roles->selectRaw('1')
+                        ->from('sales.user_role as ur')
+                        ->whereColumn('ur.employee_id', 'e.id')
+                        ->whereIn('ur.role_id', [2, 3, 4]);
+                })->orWhereExists(function ($inquiries): void {
+                    $inquiries->selectRaw('1')
+                        ->from('sales.inquiries as i')
+                        ->whereColumn('i.pic', 'e.id')
+                        ->whereNull('i.deleted_at');
+                });
+            })
+            ->exists();
     }
 
     private function makeQuotationTemplateProcessor(
@@ -981,10 +1103,10 @@ class InquiryPrintController extends Controller
         }
 
         $workingTemplatePath =
-            $tempDir .
-            DIRECTORY_SEPARATOR .
-            'quotation-template-' .
-            Str::uuid() .
+            $tempDir.
+            DIRECTORY_SEPARATOR.
+            'quotation-template-'.
+            Str::uuid().
             '.docx';
 
         if (! copy($templatePath, $workingTemplatePath)) {

@@ -58,10 +58,6 @@ export default function CompetitorTable({
                             </th>
 
                             <th className="px-3 py-2">
-                                Divisi
-                            </th>
-
-                            <th className="px-3 py-2">
                                 Keterangan
                             </th>
 
@@ -114,12 +110,6 @@ export default function CompetitorTable({
                                                     item.price
                                                 )
                                             )}
-                                        </td>
-
-                                        <td className="px-3 py-1">
-                                            {
-                                                item.division
-                                            }
                                         </td>
 
                                         <td className="px-3 py-1">

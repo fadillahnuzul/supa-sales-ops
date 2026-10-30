@@ -14,6 +14,8 @@ import {
     ChevronRight,
     type LucideIcon,
     UserGroup,
+    Van,
+    PenLine,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -67,6 +69,21 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 ) === true,
         },
         {
+            label: 'Job Order',
+            href: route('job-orders.page'),
+            icon: Van,
+            active:
+                route().current(
+                    'job-orders.page'
+                ) === true,
+        },
+        {
+            label: 'Tanda Tangan',
+            href: route('signature-settings'),
+            icon: PenLine,
+            active: route().current('signature-settings') === true,
+        },
+        {
             label: 'Access & Roles',
             href: route('role-management'),
             icon: UserGroup,
@@ -83,9 +100,17 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                     'profile-settings'
                 ) === true,
         },
-    ].filter((menu) =>
-        menu.href !== route('role-management') || user?.role_id !== 2
-    );
+    ].filter((menu) => {
+        if (menu.href === route('role-management')) {
+            return user?.role_id !== 2;
+        }
+
+        if (menu.href === route('signature-settings')) {
+            return user?.role_id != null;
+        }
+
+        return true;
+    });
 
     return (
         <aside

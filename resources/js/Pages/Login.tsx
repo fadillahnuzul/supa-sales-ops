@@ -4,6 +4,8 @@ import { Eye, EyeOff, LockKeyhole, ArrowRight } from 'lucide-react';
 
 export default function Login() {
     const [visible, setVisible] = useState(false);
+    const sessionExpired = new URLSearchParams(window.location.search)
+        .has('session_expired');
     const form = useForm({ username: '', password: '' });
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -24,6 +26,11 @@ export default function Login() {
                     <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e5eddf] text-[#0c513c]"><LockKeyhole size={23} /></div>
                     <h2 className="text-3xl font-semibold tracking-tight text-gray-900">Selamat datang kembali</h2>
                     <p className="mt-3 text-sm leading-relaxed text-gray-500">Masuk dengan akun perusahaan untuk melanjutkan.</p>
+                    {sessionExpired && (
+                        <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                            Sesi Anda telah berakhir. Silakan masuk kembali, lalu ulangi unggahan.
+                        </p>
+                    )}
                     <form onSubmit={submit} className="mt-9 space-y-5">
                         <div><label htmlFor="username" className="mb-2 block text-sm font-medium text-gray-700">Username</label><input id="username" name="username" type="text" required autoFocus autoComplete="username" value={form.data.username} onChange={e => form.setData('username', e.target.value)} aria-invalid={!!form.errors.username} aria-describedby={form.errors.username ? 'username-error' : undefined} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-[#19875f] focus:ring-2 focus:ring-[#19875f]/15" placeholder="Masukkan Username" />{form.errors.username && <p id="username-error" role="alert" className="mt-2 text-sm text-red-600">{form.errors.username}</p>}</div>
                         <div><label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-700">Kata sandi</label><div className="relative"><input id="password" name="password" type={visible ? 'text' : 'password'} required autoComplete="current-password" value={form.data.password} onChange={e => form.setData('password', e.target.value)} aria-invalid={!!form.errors.password} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-12 outline-none focus:border-[#19875f] focus:ring-2 focus:ring-[#19875f]/15" placeholder="Masukkan Kata Sandi" /><button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'} aria-pressed={visible} className="absolute inset-y-0 right-0 px-4 text-gray-500">{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{form.errors.password && <p role="alert" className="mt-2 text-sm text-red-600">{form.errors.password}</p>}</div>

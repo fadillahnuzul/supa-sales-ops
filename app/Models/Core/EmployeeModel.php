@@ -77,14 +77,14 @@ class EmployeeModel extends Authenticatable
     {
         $roleId = $this->role?->role_id;
 
-        return $roleId !== null && in_array((int) $roleId, [1, 2, 3], true);
+        return $roleId !== null;
     }
 
     public function canManageRoleManagement(): bool
     {
         $roleId = $this->role?->role_id;
 
-        return $roleId !== null && in_array((int) $roleId, [1, 3], true);
+        return $roleId !== null && in_array((int) $roleId, [1, 3, 5], true);
     }
 
     public function getFullNameAttribute(): string

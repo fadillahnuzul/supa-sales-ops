@@ -47,6 +47,12 @@ interface Props {
     grades: GradeOption[];
 
     competitorPrices: CompetitorPrice[];
+
+    onEdit: (inquiry: Inquiry) => void;
+
+    onExcel: (inquiryId: number) => void;
+
+    onPdf: (inquiry: Inquiry) => void;
 }
 
 export default function InquiryTable({
@@ -56,6 +62,9 @@ export default function InquiryTable({
     products,
     grades,
     competitorPrices,
+    onEdit,
+    onExcel,
+    onPdf,
 }: Props) {
     return (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -96,6 +105,10 @@ export default function InquiryTable({
                             <th className="px-4 py-4 text-center">
                                 Detail
                             </th>
+
+                            <th className="px-4 py-4 text-center">
+                                Aksi
+                            </th>
                         </tr>
                     </thead>
 
@@ -133,6 +146,12 @@ export default function InquiryTable({
                                     competitorPrices={
                                         competitorPrices
                                     }
+
+                                    onEdit={onEdit}
+
+                                    onExcel={onExcel}
+
+                                    onPdf={onPdf}
                                 />
                             )
                         )}

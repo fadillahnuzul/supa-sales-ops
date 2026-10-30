@@ -79,10 +79,6 @@ export default function CustomerTable({
                             </th>
 
                             <th className="px-3 py-2">
-                                Divisi
-                            </th>
-
-                            <th className="px-3 py-2">
                                 Sterilisasi
                             </th>
 
@@ -158,24 +154,6 @@ export default function CustomerTable({
                                         {
                                             customer.level
                                         }
-                                    </td>
-
-                                    <td className="px-3 py-1">
-                                        <span
-                                            className={`
-                                                rounded-md
-                                                px-2 py-1
-                                                text-xs
-                                                font-semibold
-                                                ${divisionClass(
-                                                    customer.division
-                                                )}
-                                            `}
-                                        >
-                                            {
-                                                customer.division
-                                            }
-                                        </span>
                                     </td>
 
                                     <td className="px-3 py-1">

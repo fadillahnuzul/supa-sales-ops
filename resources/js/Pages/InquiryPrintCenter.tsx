@@ -32,6 +32,7 @@ import {
     downloadInquiryPdf,
     uploadPrintTemplate,
     uploadSalesSignature,
+    updateSalesSignature,
 } from './../Services/InquiryPrintApi';
 
 import type {
@@ -143,6 +144,12 @@ export default function InquiryPrintCenter({ pics }: Props) {
         useState('');
 
     const [
+        selectedSignatureUserId,
+        setSelectedSignatureUserId,
+    ] =
+        useState('');
+
+    const [
         signatureSelectionLocked,
         setSignatureSelectionLocked,
     ] =
@@ -155,6 +162,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
 
         if (!selectedInquiryId) {
             setSignatureId('');
+            setSelectedSignatureUserId('');
             return;
         }
 
@@ -170,6 +178,7 @@ export default function InquiryPrintCenter({ pics }: Props) {
             !selectedInquiry.pic_id
         ) {
             setSignatureId('');
+            setSelectedSignatureUserId('');
             return;
         }
 
@@ -183,12 +192,14 @@ export default function InquiryPrintCenter({ pics }: Props) {
 
         if (matchedSignature) {
             setSignatureId(
-                String(
-                    matchedSignature.id
-                )
+                matchedSignature.id === null
+                    ? ''
+                    : String(matchedSignature.id)
             );
+            setSelectedSignatureUserId(String(matchedSignature.user_id));
         } else {
             setSignatureId('');
+            setSelectedSignatureUserId('');
         }
     }, [
         selectedInquiryId,
@@ -330,6 +341,22 @@ export default function InquiryPrintCenter({ pics }: Props) {
             null
         );
 
+    const [
+        signatureEditForm,
+        setSignatureEditForm,
+    ] = useState<{
+        id: number;
+        name: string;
+        division: string;
+        position: string;
+        file: File | null;
+    } | null>(null);
+
+    const [
+        signatureEditSaving,
+        setSignatureEditSaving,
+    ] = useState(false);
+
 
     /*
     |--------------------------------------------------------------------------
@@ -383,10 +410,18 @@ export default function InquiryPrintCenter({ pics }: Props) {
                 setTemplates(remaining);
                 if (templateId === String(id)) setTemplateId(String((remaining.find(item => item.is_default) ?? remaining[0])?.id ?? ''));
             } else {
-                setSignatures(items => items.filter(item => item.id !== id));
+                setSignatures(items => items.flatMap(item => {
+                    if (item.id !== id) {
+                        return [item];
+                    }
+
+                    return item.user_id === null
+                        ? []
+                        : [{ ...item, id: null }];
+                }));
                 if (signatureId === String(id)) {
                     setSignatureId('');
-                    setSignatureSelectionLocked(false);
+                    setSignatureSelectionLocked(true);
                 }
             }
         } catch (error) {
@@ -598,6 +633,11 @@ export default function InquiryPrintCenter({ pics }: Props) {
             setSignatureId(
                 String(uploadedSignature.id)
             );
+            setSelectedSignatureUserId(
+                uploadedSignature.user_id === null
+                    ? `legacy:${uploadedSignature.id}`
+                    : String(uploadedSignature.user_id)
+            );
             setSignatureSelectionLocked(true);
 
             setSignatureModal(
@@ -626,6 +666,45 @@ export default function InquiryPrintCenter({ pics }: Props) {
         }
     }
 
+    async function handleUpdateSignature() {
+        if (!signatureEditForm) {
+            return;
+        }
+
+        if (!signatureEditForm.name.trim()) {
+            alert('Nama sales wajib diisi.');
+
+            return;
+        }
+
+        setSignatureEditSaving(true);
+
+        try {
+            const updatedSignature = await updateSalesSignature(
+                signatureEditForm.id,
+                {
+                    name: signatureEditForm.name.trim(),
+                    division: signatureEditForm.division,
+                    position: signatureEditForm.position,
+                    signature: signatureEditForm.file ?? undefined,
+                }
+            );
+
+            setSignatures((items) => items.map((item) =>
+                item.id === updatedSignature.id
+                    ? updatedSignature
+                    : item
+            ));
+            setSignatureEditForm(null);
+            alert('Signature berhasil diperbarui.');
+        } catch (error) {
+            console.error(error);
+            alert('Gagal memperbarui signature.');
+        } finally {
+            setSignatureEditSaving(false);
+        }
+    }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -645,6 +724,11 @@ export default function InquiryPrintCenter({ pics }: Props) {
                 )
                 :
                 null,
+
+        signature_user_id:
+            selectedSignatureUserId && !selectedSignatureUserId.startsWith('legacy:')
+                ? Number(selectedSignatureUserId)
+                : null,
 
         quotation_date:
             quotationDate,
@@ -1273,18 +1357,40 @@ export default function InquiryPrintCenter({ pics }: Props) {
 
                                                 <select
                                                     value={
-                                                        signatureId
+                                                        selectedSignatureUserId
                                                     }
 
                                                     onChange={(
                                                         event
                                                     ) => {
                                                         setSignatureSelectionLocked(true);
-                                                        setSignatureId(
-                                                            event
-                                                                .target
-                                                                .value
+                                                        const value = event.target.value;
+
+                                                        if (!value) {
+                                                            setSignatureId('');
+                                                            setSelectedSignatureUserId('');
+
+                                                            return;
+                                                        }
+
+                                                        if (value.startsWith('legacy:')) {
+                                                            setSignatureId(value.slice(7));
+                                                            setSelectedSignatureUserId(value);
+
+                                                            return;
+                                                        }
+
+                                                        const selectedSignature = signatures.find(
+                                                            (signature) =>
+                                                                String(signature.user_id) === value
                                                         );
+                                                        setSignatureId(
+                                                            selectedSignature?.id === null
+                                                                || selectedSignature?.id === undefined
+                                                                ? ''
+                                                                : String(selectedSignature.id)
+                                                        );
+                                                        setSelectedSignatureUserId(value);
                                                     }}
 
                                                     className="
@@ -1314,11 +1420,15 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                                         ) => (
                                                             <option
                                                                 key={
-                                                                    signature.id
+                                                                    signature.user_id === null
+                                                                        ? `legacy-${signature.id}`
+                                                                        : `employee-${signature.user_id}`
                                                                 }
 
                                                                 value={
-                                                                    signature.id
+                                                                    signature.user_id === null
+                                                                        ? `legacy:${signature.id}`
+                                                                        : signature.user_id
                                                                 }
                                                             >
                                                                 {
@@ -1328,8 +1438,9 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                                                 {signature.division
                                                                     ?
                                                                     ` - ${signature.division}`
-                                                                    :
-                                                                    ''}
+                                                                    : signature.position
+                                                                        ? ` - ${signature.position}`
+                                                                        : ''}
                                                             </option>
                                                         )
                                                     )}
@@ -1633,57 +1744,83 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                             ))}
                                         </div>
                                     )
-                                ) : signatures.length === 0 ? (
+                                ) : signatures.every((signature) => signature.id === null) ? (
                                     <p className="p-6 text-center text-sm text-gray-500">
                                         Belum ada signature aktif.
                                     </p>
                                 ) : (
                                     <div className="divide-y divide-gray-100">
-                                        {signatures.map((signature) => (
-                                            <div
-                                                key={signature.id}
-                                                className="flex flex-wrap items-center justify-between gap-4 py-3"
-                                            >
-                                                <a href={assetUrl('signatures', signature.id)} target="_blank" rel="noopener noreferrer" aria-label={`Lihat signature ${signature.name}`} className="shrink-0">
-                                                    <img src={assetUrl('signatures', signature.id)} alt={`Signature ${signature.name}`} loading="lazy" className="h-20 w-32 rounded-lg border bg-white object-contain p-2" />
-                                                </a>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-medium text-gray-900">
-                                                        {signature.name}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-gray-500">
-                                                        {[signature.position, signature.division]
-                                                            .filter(Boolean)
-                                                            .join(' · ') || 'Jabatan/divisi belum diisi'}
-                                                    </p>
-                                                </div>
-                                                <button type="button" disabled={deletingAsset !== null} onClick={() => handleDeleteAsset('signatures', signature.id, signature.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50">{deletingAsset === `signatures:${signature.id}` ? 'Menghapus…' : 'Hapus'}</button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSignatureSelectionLocked(true);
-                                                        setSignatureId(String(signature.id));
-                                                        setAssetList(null);
-                                                    }}
-                                                    className="
-                                                        shrink-0
-                                                        rounded-lg
-                                                        border
-                                                        border-gray-300
-                                                        px-3
-                                                        py-1.5
-                                                        text-xs
-                                                        font-medium
-                                                        text-gray-700
-                                                        hover:bg-gray-50
-                                                    "
+                                        {signatures.map((signature) => {
+                                            if (signature.id === null) {
+                                                return null;
+                                            }
+
+                                            return (
+                                                <div
+                                                    key={signature.id}
+                                                    className="flex flex-wrap items-center justify-between gap-4 py-3"
                                                 >
-                                                    {String(signature.id) === signatureId
-                                                        ? 'Dipilih'
-                                                        : 'Pakai'}
-                                                </button>
-                                            </div>
-                                        ))}
+                                                    <a href={assetUrl('signatures', signature.id)} target="_blank" rel="noopener noreferrer" aria-label={`Lihat signature ${signature.name}`} className="shrink-0">
+                                                        <img src={assetUrl('signatures', signature.id)} alt={`Signature ${signature.name}`} loading="lazy" className="h-20 w-32 rounded-lg border bg-white object-contain p-2" />
+                                                    </a>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-medium text-gray-900">
+                                                            {signature.name}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            {[signature.position, signature.division]
+                                                                .filter(Boolean)
+                                                                .join(' · ') || 'Jabatan/divisi belum diisi'}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        disabled={deletingAsset !== null || signatureEditSaving}
+                                                        onClick={() => setSignatureEditForm({
+                                                            id: signature.id!,
+                                                            name: signature.name,
+                                                            division: signature.division ?? '',
+                                                            position: signature.position ?? '',
+                                                            file: null,
+                                                        })}
+                                                        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                                    >
+                                                        <PenLine size={14} />
+                                                        Edit
+                                                    </button>
+                                                    <button type="button" disabled={deletingAsset !== null} onClick={() => handleDeleteAsset('signatures', signature.id, signature.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50">{deletingAsset === `signatures:${signature.id}` ? 'Menghapus…' : 'Hapus'}</button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSignatureSelectionLocked(true);
+                                                            setSignatureId(String(signature.id));
+                                                            setSelectedSignatureUserId(
+                                                                signature.user_id === null
+                                                                    ? `legacy:${signature.id}`
+                                                                    : String(signature.user_id)
+                                                            );
+                                                            setAssetList(null);
+                                                        }}
+                                                        className="
+                                                            shrink-0
+                                                            rounded-lg
+                                                            border
+                                                            border-gray-300
+                                                            px-3
+                                                            py-1.5
+                                                            text-xs
+                                                            font-medium
+                                                            text-gray-700
+                                                            hover:bg-gray-50
+                                                        "
+                                                    >
+                                                        {String(signature.id) === signatureId
+                                                            ? 'Dipilih'
+                                                            : 'Pakai'}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -2333,6 +2470,109 @@ export default function InquiryPrintCenter({ pics }: Props) {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {signatureEditForm && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+                        <section
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="edit-signature-title"
+                            className="w-full max-w-lg rounded-xl bg-white shadow-xl"
+                        >
+                            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                                <div>
+                                    <h2 id="edit-signature-title" className="font-semibold text-gray-900">
+                                        Edit Signature
+                                    </h2>
+                                    <p className="mt-0.5 text-sm text-gray-500">
+                                        Perbarui data sales atau ganti file tanda tangannya.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    aria-label="Tutup edit signature"
+                                    onClick={() => setSignatureEditForm(null)}
+                                    className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="grid gap-4 p-6">
+                                <label className="grid gap-1.5 text-sm font-medium text-gray-700">
+                                    Nama Sales
+                                    <input
+                                        required
+                                        maxLength={150}
+                                        value={signatureEditForm.name}
+                                        onChange={(event) => setSignatureEditForm((form) => form
+                                            ? { ...form, name: event.target.value }
+                                            : form)}
+                                        className="h-11 rounded-lg border border-gray-300 px-3 font-normal outline-none focus:border-[#19875f] focus:ring-2 focus:ring-[#19875f]/10"
+                                    />
+                                </label>
+
+                                <label className="grid gap-1.5 text-sm font-medium text-gray-700">
+                                    Division
+                                    <input
+                                        maxLength={50}
+                                        value={signatureEditForm.division}
+                                        onChange={(event) => setSignatureEditForm((form) => form
+                                            ? { ...form, division: event.target.value }
+                                            : form)}
+                                        className="h-11 rounded-lg border border-gray-300 px-3 font-normal outline-none focus:border-[#19875f] focus:ring-2 focus:ring-[#19875f]/10"
+                                    />
+                                </label>
+
+                                <label className="grid gap-1.5 text-sm font-medium text-gray-700">
+                                    Posisi
+                                    <input
+                                        maxLength={150}
+                                        value={signatureEditForm.position}
+                                        onChange={(event) => setSignatureEditForm((form) => form
+                                            ? { ...form, position: event.target.value }
+                                            : form)}
+                                        className="h-11 rounded-lg border border-gray-300 px-3 font-normal outline-none focus:border-[#19875f] focus:ring-2 focus:ring-[#19875f]/10"
+                                    />
+                                </label>
+
+                                <label className="grid gap-1.5 text-sm font-medium text-gray-700">
+                                    Ganti file TTD (opsional)
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        onChange={(event) => setSignatureEditForm((form) => form
+                                            ? { ...form, file: event.target.files?.[0] ?? null }
+                                            : form)}
+                                        className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-normal"
+                                    />
+                                    <span className="text-xs font-normal text-gray-500">
+                                        PNG, JPG, atau WEBP; maksimal 2 MB. Kosongkan jika tidak ingin mengganti file.
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
+                                <button
+                                    type="button"
+                                    disabled={signatureEditSaving}
+                                    onClick={() => setSignatureEditForm(null)}
+                                    className="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 disabled:opacity-50"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={signatureEditSaving}
+                                    onClick={handleUpdateSignature}
+                                    className="h-10 rounded-lg bg-[#19875f] px-4 text-sm font-medium text-white hover:bg-[#146f4e] disabled:opacity-50"
+                                >
+                                    {signatureEditSaving ? 'Menyimpan…' : 'Simpan Perubahan'}
+                                </button>
+                            </div>
+                        </section>
                     </div>
                 )}
 

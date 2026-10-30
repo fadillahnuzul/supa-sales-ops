@@ -694,7 +694,7 @@ export default function DatabaseFormModal({
                                     />
                                 </Field>
 
-                                <div className="grid gap-4 md:grid-cols-3">
+                                <div className="grid gap-4 md:grid-cols-2">
                                     <Field label="Level Risiko">
                                         <select
                                             value={customerForm.level}
@@ -718,32 +718,6 @@ export default function DatabaseFormModal({
                                             </option>
                                         </select>
                                     </Field>
-
-                                    <Field label="Divisi">
-                                        <select
-                                            value={customerForm.division}
-                                            onChange={(e) =>
-                                                setCustomerForm({
-                                                    ...customerForm,
-                                                    division: e.target
-                                                        .value as Division,
-                                                })
-                                            }
-                                            className={inputClass}
-                                        >
-                                            <option value="Industri">
-                                                Industri
-                                            </option>
-                                            <option value="SME">SME</option>
-                                            <option value="Low Cost">
-                                                Low Cost
-                                            </option>
-                                            <option value="All">
-                                                All
-                                            </option>
-                                        </select>
-                                    </Field>
-
                                     <Field label="Sterilisasi">
                                         <select
                                             required
@@ -1086,42 +1060,6 @@ export default function DatabaseFormModal({
                                                 }
                                                 placeholder="Contoh: Cahaya Pelita"
                                             />
-                                        </Field>
-
-                                        <Field label="Divisi">
-                                            <select
-                                                required
-                                                value={
-                                                    competitorForm.division
-                                                }
-                                                onChange={(e) =>
-                                                    setCompetitorForm({
-                                                        ...competitorForm,
-                                                        division:
-                                                            e.target
-                                                                .value as Division,
-                                                    })
-                                                }
-                                                className={
-                                                    inputClass
-                                                }
-                                            >
-                                                <option value="Industri">
-                                                    Industri
-                                                </option>
-
-                                                <option value="SME">
-                                                    SME
-                                                </option>
-
-                                                <option value="Low Cost">
-                                                    Low Cost
-                                                </option>
-
-                                                <option value="All">
-                                                    All
-                                                </option>
-                                            </select>
                                         </Field>
                                     </div>
 

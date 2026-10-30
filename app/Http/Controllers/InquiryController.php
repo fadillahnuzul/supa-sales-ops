@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Core\CustomerModel;
+use App\Models\Core\EmployeeModel;
+use App\Models\Sales\InquiryModel;
+use App\Support\CustomerSegmentationFilter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Models\Sales\InquiryModel;
-use App\Models\Core\CustomerModel;
-use App\Models\Core\EmployeeModel;
-use App\Support\CustomerSegmentationFilter;
 
 class InquiryController extends Controller
 {
@@ -48,7 +48,7 @@ class InquiryController extends Controller
                 'c.divisi as customer_division',
                 'c.level as customer_risk_level',
 
-                DB::raw("concat(e.first_name) as pic_name"),
+                DB::raw('concat(e.first_name) as pic_name'),
             ])
             ->orderByDesc('i.date')
             ->orderByDesc('i.id')
@@ -98,7 +98,7 @@ class InquiryController extends Controller
                 'cp.id'
             );
 
-        if (!empty($inquiryIds)) {
+        if (! empty($inquiryIds)) {
             $details = DB::table(
                 'sales.inquiry_details as d'
             )
@@ -237,11 +237,9 @@ class InquiryController extends Controller
 
                     'pic' => $inquiry->pic,
 
-                    'customerId' =>
-                    $inquiry->customer_id,
+                    'customerId' => $inquiry->customer_id,
 
-                    'shippingRate' =>
-                    $inquiry->shipping_rate !== null
+                    'shippingRate' => $inquiry->shipping_rate !== null
                         ? (float) $inquiry->shipping_rate
                         : null,
 
@@ -250,167 +248,127 @@ class InquiryController extends Controller
                     /*
                     | Customer Relation
                     */
-                    'customer' =>
-                    $inquiry->customer_id
+                    'customer' => $inquiry->customer_id
                         ? [
-                            'id' =>
-                            $inquiry->customer_id,
+                            'id' => $inquiry->customer_id,
 
-                            'name' =>
-                            $inquiry->customer_name,
+                            'name' => $inquiry->customer_name,
 
-                            'division' =>
-                            $inquiry->customer_division,
+                            'division' => $inquiry->customer_division,
 
-                            'riskLevel' =>
-                            $inquiry->customer_risk_level,
+                            'riskLevel' => $inquiry->customer_risk_level,
                         ]
                         : null,
 
                     /*
                     | PIC Relation
                     */
-                    'picUser' =>
-                    $inquiry->pic
+                    'picUser' => $inquiry->pic
                         ? [
-                            'id' =>
-                            $inquiry->pic,
+                            'id' => $inquiry->pic,
 
-                            'name' =>
-                            $inquiry->pic_name,
+                            'name' => $inquiry->pic_name,
                         ]
                         : null,
 
                     /*
                     | Detail
                     */
-                    'details' =>
-                    $detailRows
+                    'details' => $detailRows
                         ->map(
-                            fn($detail) => [
-                                'id' =>
-                                $detail->id,
+                            fn ($detail) => [
+                                'id' => $detail->id,
 
-                                'productId' =>
-                                $detail->product_id,
+                                'productId' => $detail->product_id,
 
-                                'gradeId' =>
-                                $detail->grade_id,
+                                'gradeId' => $detail->grade_id,
 
-                                'qty' =>
-                                $detail->qty !== null
+                                'qty' => $detail->qty !== null
                                     ? (float) $detail->qty
                                     : '',
 
-                                'productStdPrice' =>
-                                $detail->product_std_price !== null
+                                'productStdPrice' => $detail->product_std_price !== null
                                     ? (float) $detail->product_std_price
                                     : null,
 
-                                'alternativePrice' =>
-                                $detail->alternative_price !== null
+                                'alternativePrice' => $detail->alternative_price !== null
                                     ? (float) $detail->alternative_price
                                     : null,
 
-                                'sourceAP' =>
-                                $detail->source_ap,
+                                'sourceAP' => $detail->source_ap,
 
-                                'dateAP' =>
-                                $detail->date_ap,
+                                'dateAP' => $detail->date_ap,
 
-                                'referencePrice' =>
-                                $detail->reference_price !== null
+                                'referencePrice' => $detail->reference_price !== null
                                     ? (float) $detail->reference_price
                                     : null,
 
-                                'lastOrderDate' =>
-                                $detail->last_order_date,
+                                'lastOrderDate' => $detail->last_order_date,
 
-                                'lastOrderPrice' =>
-                                $detail->last_order_price !== null
+                                'lastOrderPrice' => $detail->last_order_price !== null
                                     ? (float) $detail->last_order_price
                                     : null,
 
-                                'lastQuotationDate' =>
-                                $detail->last_quotation_date,
+                                'lastQuotationDate' => $detail->last_quotation_date,
 
-                                'lastQuotationPrice' =>
-                                $detail->last_quotation_price !== null
+                                'lastQuotationPrice' => $detail->last_quotation_price !== null
                                     ? (float) $detail->last_quotation_price
                                     : null,
 
-                                'recommendedPrice' =>
-                                $detail->recommended_price !== null
+                                'recommendedPrice' => $detail->recommended_price !== null
                                     ? (float) $detail->recommended_price
                                     : null,
 
-                                'approvedPrice' =>
-                                $detail->approved_price !== null
+                                'approvedPrice' => $detail->approved_price !== null
                                     ? (float) $detail->approved_price
                                     : null,
 
-                                'approvedDate' =>
-                                $detail->approved_date,
+                                'approvedDate' => $detail->approved_date,
 
-                                'offer1Price' =>
-                                $detail->offer_1_price !== null
+                                'offer1Price' => $detail->offer_1_price !== null
                                     ? (float) $detail->offer_1_price
                                     : null,
 
-                                'offer2Price' =>
-                                $detail->offer_2_price !== null
+                                'offer2Price' => $detail->offer_2_price !== null
                                     ? (float) $detail->offer_2_price
                                     : null,
 
-                                'offer3Price' =>
-                                $detail->offer_3_price !== null
+                                'offer3Price' => $detail->offer_3_price !== null
                                     ? (float) $detail->offer_3_price
                                     : null,
 
-                                'finalPrice' =>
-                                $detail->final_price !== null
+                                'finalPrice' => $detail->final_price !== null
                                     ? (float) $detail->final_price
                                     : null,
 
-                                'note' =>
-                                $detail->note ?? '',
+                                'note' => $detail->note ?? '',
 
                                 /*
                                     | Display Relation
                                     */
-                                'product' =>
-                                $detail->product_id
+                                'product' => $detail->product_id
                                     ? [
-                                        'id' =>
-                                        $detail->product_id,
+                                        'id' => $detail->product_id,
 
-                                        'name' =>
-                                        $detail->product_name,
+                                        'name' => $detail->product_name,
 
-                                        'code' =>
-                                        $detail->product_code,
+                                        'code' => $detail->product_code,
                                     ]
                                     : null,
 
-                                'grade' =>
-                                $detail->grade_id
+                                'grade' => $detail->grade_id
                                     ? [
-                                        'id' =>
-                                        $detail->grade_id,
+                                        'id' => $detail->grade_id,
 
-                                        'name' =>
-                                        $detail->grade_name,
+                                        'name' => $detail->grade_name,
                                     ]
                                     : null,
 
-                                'competitor' =>
-                                $detail->source_ap
+                                'competitor' => $detail->source_ap
                                     ? [
-                                        'id' =>
-                                        $detail->source_ap,
+                                        'id' => $detail->source_ap,
 
-                                        'name' =>
-                                        $detail->competitor_name,
+                                        'name' => $detail->competitor_name,
                                     ]
                                     : null,
 
@@ -442,14 +400,13 @@ class InquiryController extends Controller
             ->orderBy('c.name')
             ->get()
             ->map(
-                fn($customer) => [
+                fn ($customer) => [
                     'id' => $customer->id,
                     'name' => $customer->name,
                     'division' => $customer->divisi,
                     'riskLevel' => $customer->level,
                 ]
             );
-
 
         $pics = DB::table('core.employees as e')
             ->join(
@@ -486,15 +443,14 @@ class InquiryController extends Controller
             ->orderBy('name')
             ->get()
             ->map(
-                fn($product) => [
+                fn ($product) => [
                     'id' => $product->id,
 
                     'name' => $product->name,
 
                     'code' => $product->code,
 
-                    'stdPrice' =>
-                    $product->std_price !== null
+                    'stdPrice' => $product->std_price !== null
                         ? (float) $product->std_price
                         : null,
                 ]
@@ -586,55 +542,41 @@ class InquiryController extends Controller
             )
             ->get()
             ->map(
-                fn($price) => [
-                    'id' =>
-                    $price->id,
+                fn ($price) => [
+                    'id' => $price->id,
 
-                    'competitorId' =>
-                    $price->competitor_id,
+                    'competitorId' => $price->competitor_id,
 
-                    'competitorName' =>
-                    $price->competitor_name,
+                    'competitorName' => $price->competitor_name,
 
-                    'productId' =>
-                    $price->product_id,
+                    'productId' => $price->product_id,
 
-                    'price' =>
-                    $price->price !== null
+                    'price' => $price->price !== null
                         ? (float) $price->price
                         : null,
 
-                    'date' =>
-                    $price->date,
+                    'date' => $price->date,
 
-                    'note' =>
-                    $price->note,
+                    'note' => $price->note,
                 ]
             );
 
         return Inertia::render(
             'Inquiry',
             [
-                'inquiries' =>
-                $inquiryData,
+                'inquiries' => $inquiryData,
 
-                'customers' =>
-                $customers,
+                'customers' => $customers,
 
-                'pics' =>
-                $pics,
+                'pics' => $pics,
 
-                'products' =>
-                $products,
+                'products' => $products,
 
-                'grades' =>
-                $grades,
+                'grades' => $grades,
 
-                'competitors' =>
-                $competitors,
+                'competitors' => $competitors,
 
-                'competitorPrices' =>
-                $competitorPrices,
+                'competitorPrices' => $competitorPrices,
             ]
         );
     }
@@ -692,32 +634,23 @@ class InquiryController extends Controller
         DB::table(
             'sales.inquiries'
         )->insert([
-            'code' =>
-            $validated['code'],
+            'code' => $validated['code'],
 
-            'date' =>
-            $validated['date'],
+            'date' => $validated['date'],
 
-            'etd' =>
-            $validated['etd'] ?? null,
+            'etd' => $validated['etd'] ?? null,
 
-            'pic' =>
-            $validated['pic'] ?? null,
+            'pic' => $validated['pic'] ?? null,
 
-            'customer_id' =>
-            $validated['customer_id'] ?? null,
+            'customer_id' => $validated['customer_id'] ?? null,
 
-            'shipping_rate' =>
-            $validated['shipping_rate'] ?? null,
+            'shipping_rate' => $validated['shipping_rate'] ?? null,
 
-            'note' =>
-            $validated['note'] ?? null,
+            'note' => $validated['note'] ?? null,
 
-            'created_at' =>
-            now(),
+            'created_at' => now(),
 
-            'updated_at' =>
-            now(),
+            'updated_at' => now(),
         ]);
 
         return back()->with(
@@ -735,12 +668,12 @@ class InquiryController extends Controller
     ) {
         $existing =
             DB::table('sales.inquiries')
-            ->where('id', $inquiry)
-            ->whereNull('deleted_at')
-            ->first();
+                ->where('id', $inquiry)
+                ->whereNull('deleted_at')
+                ->first();
 
         abort_if(
-            !$existing,
+            ! $existing,
             404
         );
 
@@ -751,7 +684,7 @@ class InquiryController extends Controller
                 'max:100',
 
                 Rule::unique(
-                    'sales.inquiries',
+                    InquiryModel::class,
                     'code'
                 )
                     ->ignore(
@@ -781,7 +714,7 @@ class InquiryController extends Controller
             'customer_id' => [
                 'nullable',
                 'integer',
-                'exists:core.customers,id',
+                Rule::exists(CustomerModel::class, 'id'),
             ],
 
             'shipping_rate' => [
@@ -804,29 +737,21 @@ class InquiryController extends Controller
                 $inquiry
             )
             ->update([
-                'code' =>
-                $validated['code'],
+                'code' => $validated['code'],
 
-                'date' =>
-                $validated['date'],
+                'date' => $validated['date'],
 
-                'etd' =>
-                $validated['etd'] ?? null,
+                'etd' => $validated['etd'] ?? null,
 
-                'pic' =>
-                $validated['pic'] ?? null,
+                'pic' => $validated['pic'] ?? null,
 
-                'customer_id' =>
-                $validated['customer_id'] ?? null,
+                'customer_id' => $validated['customer_id'] ?? null,
 
-                'shipping_rate' =>
-                $validated['shipping_rate'] ?? null,
+                'shipping_rate' => $validated['shipping_rate'] ?? null,
 
-                'note' =>
-                $validated['note'] ?? null,
+                'note' => $validated['note'] ?? null,
 
-                'updated_at' =>
-                now(),
+                'updated_at' => now(),
             ]);
 
         return back()->with(
@@ -854,11 +779,9 @@ class InquiryController extends Controller
                         'deleted_at'
                     )
                     ->update([
-                        'deleted_at' =>
-                        now(),
+                        'deleted_at' => now(),
 
-                        'updated_at' =>
-                        now(),
+                        'updated_at' => now(),
                     ]);
 
                 DB::table(
@@ -872,11 +795,9 @@ class InquiryController extends Controller
                         'deleted_at'
                     )
                     ->update([
-                        'deleted_at' =>
-                        now(),
+                        'deleted_at' => now(),
 
-                        'updated_at' =>
-                        now(),
+                        'updated_at' => now(),
                     ]);
             }
         );
