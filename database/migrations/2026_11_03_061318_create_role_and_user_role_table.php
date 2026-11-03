@@ -49,7 +49,7 @@ return new class extends Migration
         DB::statement("
         CREATE UNIQUE INDEX IF NOT EXISTS
         user_role_user_id_role_id_unique
-        ON sales.user_role (user_id, role_id)
+        ON sales.user_role (employee_id, role_id)
     ");
 
         DB::statement("
