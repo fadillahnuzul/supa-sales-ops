@@ -27,20 +27,20 @@ return new class extends Migration
         if (!Schema::hasTable('sales.user_role')) {
             Schema::create('sales.user_role', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedBigInteger('user_id');
+                $table->unsignedBigInteger('employee_id');
                 $table->unsignedBigInteger('role_id');
                 $table->timestamps();
 
                 $table->unique(
-                    ['user_id', 'role_id'],
-                    'user_role_user_id_role_id_unique'
+                    ['employee_id', 'role_id'],
+                    'user_role_employee_id_role_id_unique'
                 );
             });
         }
 
         DB::statement("
         ALTER TABLE sales.user_role
-        ADD COLUMN IF NOT EXISTS user_id BIGINT,
+        ADD COLUMN IF NOT EXISTS employee_id BIGINT,
         ADD COLUMN IF NOT EXISTS role_id BIGINT,
         ADD COLUMN IF NOT EXISTS created_at TIMESTAMP,
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
