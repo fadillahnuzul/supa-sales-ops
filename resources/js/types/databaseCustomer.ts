@@ -13,6 +13,7 @@ export interface Customer {
     id: number;
     customerId: number;
 
+    code: string | null;
     company: string;
     address: string | null;
 

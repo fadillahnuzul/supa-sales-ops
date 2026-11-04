@@ -91,6 +91,7 @@ class CustomerController extends Controller
                 return [
                     'id' => $customer->id,
                     'customerId' => $customer->id,
+                    'code' => $customer->code,
                     'company' => $customer->name,
                     'address' => $customer->address,
 
@@ -216,6 +217,7 @@ class CustomerController extends Controller
     public function template()
     {
         $header = [
+            'code',
             'company',
             'address',
             'segmentation',
@@ -229,6 +231,7 @@ class CustomerController extends Controller
         $rows = [
             $header,
             [
+                'CUS-001',
                 'PT Maju Jaya',
                 'Jl. Merdeka No. 10, Bandung',
                 'General',
@@ -274,7 +277,7 @@ class CustomerController extends Controller
 
         if (empty($mappedRows)) {
             return back()->withErrors([
-                'file' => 'Kolom file tidak sesuai. Gunakan template dengan atribut: company, address, segmentation, level, division, pic, phone. Sterilization bersifat opsional untuk template lama.',
+                'file' => 'Kolom file tidak sesuai. Gunakan template dengan atribut: code (opsional), company, address, segmentation, level, division, pic, phone. Sterilization bersifat opsional untuk template lama.',
             ]);
         }
 
@@ -309,6 +312,11 @@ class CustomerController extends Controller
         Request $request
     ): array {
         $validated = $request->validate([
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
             'name' => [
                 'sometimes',
                 'nullable',
@@ -405,7 +413,8 @@ class CustomerController extends Controller
 
         return array_filter(
             $validated,
-            fn ($value) => $value !== null
+            fn ($value, $key) => $key === 'code' || $value !== null,
+            ARRAY_FILTER_USE_BOTH
         );
     }
 
@@ -445,7 +454,7 @@ class CustomerController extends Controller
 
         $header = $this->normalizeImportHeaderRow(array_shift($rows));
         $required = ['company', 'address', 'segmentation', 'level', 'division', 'pic', 'phone'];
-        $fields = [...$required, 'sterilization'];
+        $fields = ['code', ...$required, 'sterilization'];
 
         if (empty($header)) {
             return [];
@@ -503,6 +512,7 @@ class CustomerController extends Controller
         $key = strtolower(trim(preg_replace('/[^a-z0-9]+/i', ' ', $value)));
 
         $aliases = [
+            'code' => ['code', 'customer code', 'kode customer', 'kode pelanggan'],
             'company' => ['company', 'nama perusahaan', 'nama perusahaan customer', 'perusahaan'],
             'address' => ['address', 'alamat', 'domisili', 'lokasi'],
             'segmentation' => ['segmentation', 'segmentationid', 'segmentation id', 'segmentation_id', 'segmentasi', 'segmentasi id', 'sementation'],
@@ -535,6 +545,7 @@ class CustomerController extends Controller
         $segmentationId = $this->normalizeImportSegmentationId((string) ($row['segmentation'] ?? $row['segmentationId'] ?? ''));
 
         $validated = [
+            'code' => trim((string) ($row['code'] ?? '')),
             'name' => $company,
             'address' => $address,
             'segmentation_id' => $segmentationId,
@@ -551,6 +562,7 @@ class CustomerController extends Controller
     private function validateCustomerData(array $validated): array
     {
         $validator = Validator::make($validated, [
+            'code' => ['nullable', 'string', 'max:50'],
             'name' => ['required', 'string', 'max:255'],
             'address' => ['required', 'string', 'max:255'],
             'segmentation_id' => ['required', 'integer', Rule::exists(SegmentationModel::class, 'id')],

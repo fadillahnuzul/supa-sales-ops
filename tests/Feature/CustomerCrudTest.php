@@ -3,6 +3,7 @@
 use App\Models\Core\CustomerModel;
 use App\Models\Core\SegmentationModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Testing\File;
 
 uses(RefreshDatabase::class);
 
@@ -12,6 +13,7 @@ test('customer create update and delete accept frontend field names', function (
     ]);
 
     $this->post(route('customers.store'), [
+        'code' => 'CUS-001',
         'company' => 'PT Maju Jaya',
         'address' => 'Jl. Merdeka No. 10',
         'segmentationId' => $segmentation->id,
@@ -26,11 +28,13 @@ test('customer create update and delete accept frontend field names', function (
 
     expect($customer)->not->toBeNull()
         ->and($customer->name)->toBe('PT Maju Jaya')
+        ->and($customer->code)->toBe('CUS-001')
         ->and($customer->segmentation_id)->toBe($segmentation->id)
         ->and($customer->divisi)->toBe('Industri')
         ->and($customer->sterilization)->toBe('S');
 
     $this->put(route('customers.update', $customer), [
+        'code' => 'CUS-002',
         'company' => 'PT Maju Jaya Baru',
         'address' => 'Jl. Baru No. 2',
         'segmentationId' => $segmentation->id,
@@ -44,9 +48,24 @@ test('customer create update and delete accept frontend field names', function (
     $customer->refresh();
 
     expect($customer->name)->toBe('PT Maju Jaya Baru')
+        ->and($customer->code)->toBe('CUS-002')
         ->and($customer->divisi)->toBe('SME')
         ->and($customer->level)->toBe('Medium')
         ->and($customer->sterilization)->toBe('SS');
+
+    $this->put(route('customers.update', $customer), [
+        'code' => null,
+        'company' => 'PT Maju Jaya Baru',
+        'address' => 'Jl. Baru No. 2',
+        'segmentationId' => $segmentation->id,
+        'level' => 'Medium',
+        'division' => 'SME',
+        'sterilization' => 'SS',
+        'pic' => 'Andi',
+        'phone' => '081299988877',
+    ])->assertSessionHasNoErrors();
+
+    expect($customer->refresh()->code)->toBeNull();
 
     $this->delete(route('customers.destroy', $customer))
         ->assertSessionHasNoErrors();
@@ -77,7 +96,7 @@ test('customer accepts segmentation names and resolves them to ids', function ()
         ->and($customer->segmentation_id)->toBe($segmentation->id);
 });
 
-test('customer import reads generated excel template and saves sterilization', function () {
+test('customer import reads generated excel template and saves code and sterilization', function () {
     $segmentation = SegmentationModel::create([
         'name' => 'General',
     ]);
@@ -87,11 +106,12 @@ test('customer import reads generated excel template and saves sterilization', f
         ->streamedContent();
 
     $this->post(route('customers.import'), [
-        'file' => \Illuminate\Http\Testing\File::createWithContent('customer-import.xlsx', $template),
+        'file' => File::createWithContent('customer-import.xlsx', $template),
     ])->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('customers', [
         'name' => 'PT Maju Jaya',
+        'code' => 'CUS-001',
         'segmentation_id' => $segmentation->id,
         'divisi' => 'Industri',
         'sterilization' => 'S',
@@ -107,12 +127,35 @@ test('customer import accepts older templates without sterilization', function (
         "PT Legacy Import,Jl. Lama No. 1,General,Low,Industri,Aji,081000111222\n";
 
     $this->post(route('customers.import'), [
-        'file' => \Illuminate\Http\Testing\File::createWithContent('legacy-customer-import.csv', $csv),
+        'file' => File::createWithContent('legacy-customer-import.csv', $csv),
     ])->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('customers', [
         'name' => 'PT Legacy Import',
+        'code' => null,
         'segmentation_id' => $segmentation->id,
         'sterilization' => 'S',
+    ]);
+});
+
+test('customer code cannot exceed 50 characters', function () {
+    $segmentation = SegmentationModel::create([
+        'name' => 'General',
+    ]);
+
+    $this->post(route('customers.store'), [
+        'code' => str_repeat('C', 51),
+        'company' => 'PT Invalid Code',
+        'address' => 'Jl. Merdeka No. 10',
+        'segmentationId' => $segmentation->id,
+        'level' => 'Low',
+        'division' => 'Industri',
+        'sterilization' => 'S',
+        'pic' => 'Budi',
+        'phone' => '081234567890',
+    ])->assertSessionHasErrors('code');
+
+    $this->assertDatabaseMissing('customers', [
+        'name' => 'PT Invalid Code',
     ]);
 });

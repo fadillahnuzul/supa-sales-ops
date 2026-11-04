@@ -22,6 +22,7 @@ export type Sterilization =
 export interface Customer {
     id: number;
     customerId?: number | string;
+    code: string | null;
     company: string;
     address: string;
     segmentationId?: number | string;
@@ -61,6 +62,16 @@ export interface Product {
     std_price: number;
 
     grade_id: number | null;
+
+    botanical_name?: string | null;
+
+    fda?: string | null;
+
+    fssc?: string | null;
+
+    kosher?: string | null;
+
+    halal?: string | null;
 
     grade?: {
         id: number;

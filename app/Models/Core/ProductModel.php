@@ -25,6 +25,11 @@ class ProductModel extends Model
         'code',
         'std_price',
         'grade_id',
+        'botanical_name',
+        'fda',
+        'fssc',
+        'kosher',
+        'halal',
     ];
 
     protected $casts = [

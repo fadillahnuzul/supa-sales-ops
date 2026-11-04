@@ -393,6 +393,7 @@ class InquiryController extends Controller
         $customers = $customerQuery
             ->select([
                 'c.id',
+                'c.code',
                 'c.name',
                 'c.divisi',
                 'c.level',
@@ -402,6 +403,7 @@ class InquiryController extends Controller
             ->map(
                 fn ($customer) => [
                     'id' => $customer->id,
+                    'code' => $customer->code,
                     'name' => $customer->name,
                     'division' => $customer->divisi,
                     'riskLevel' => $customer->level,

@@ -25,6 +25,7 @@ import type { PageProps } from '../types';
 export interface CustomerOption {
     id: number;
     name: string;
+    code?: string | null;
     division?: string | null;
     riskLevel?: string | null;
 }

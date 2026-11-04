@@ -67,6 +67,7 @@ export default function DatabaseFormModal({
     grades = [],
 }: Props) {
     const [customerForm, setCustomerForm] = useState({
+        code: '',
         company: '',
         address: '',
         segmentationId: '',
@@ -81,6 +82,11 @@ export default function DatabaseFormModal({
         name: '',
         code: '',
         stdPrice: '',
+        botanicalName: '',
+        fda: '',
+        fssc: '',
+        kosher: '',
+        halal: '',
         materials: [] as string[],
         gradeId: '',
     });
@@ -136,6 +142,9 @@ export default function DatabaseFormModal({
             editingCustomer
         ) {
             setCustomerForm({
+                code:
+                    editingCustomer.code ?? '',
+
                 company:
                     editingCustomer.company ?? '',
 
@@ -167,6 +176,7 @@ export default function DatabaseFormModal({
 
         if (activeTab === 'customer') {
             setCustomerForm({
+                code: '',
                 company: '',
                 address: '',
                 segmentationId: '',
@@ -207,6 +217,26 @@ export default function DatabaseFormModal({
                         ?.toString() ??
                     '',
 
+                botanicalName:
+                    editingProduct.botanical_name ??
+                    '',
+
+                fda:
+                    editingProduct.fda ??
+                    '',
+
+                fssc:
+                    editingProduct.fssc ??
+                    '',
+
+                kosher:
+                    editingProduct.kosher ??
+                    '',
+
+                halal:
+                    editingProduct.halal ??
+                    '',
+
                 materials:
                     editingProduct.materials
                         ?.map(
@@ -228,6 +258,11 @@ export default function DatabaseFormModal({
             name: '',
             code: '',
             stdPrice: '',
+            botanicalName: '',
+            fda: '',
+            fssc: '',
+            kosher: '',
+            halal: '',
             materials: [],
             gradeId: '',
         });
@@ -362,6 +397,7 @@ export default function DatabaseFormModal({
 
         if (activeTab === 'customer') {
             const payload = {
+                code: customerForm.code || null,
                 name: customerForm.company,
                 address: customerForm.address,
                 segmentation_id: customerForm.segmentationId
@@ -416,6 +452,21 @@ export default function DatabaseFormModal({
                     Number(
                         productForm.stdPrice
                     ),
+
+                botanical_name:
+                    productForm.botanicalName,
+
+                fda:
+                    productForm.fda,
+
+                fssc:
+                    productForm.fssc,
+
+                kosher:
+                    productForm.kosher,
+
+                halal:
+                    productForm.halal,
 
                 materials:
                     productForm.materials.filter(
@@ -631,7 +682,7 @@ export default function DatabaseFormModal({
                     <div className="space-y-5 p-6">
                         {activeTab === 'customer' && (
                             <>
-                                <div className="grid gap-4 md:grid-cols-2">
+                                <div className="grid gap-4 md:grid-cols-3">
                                     <Field label="Nama Perusahaan">
                                         <input
                                             required
@@ -644,6 +695,20 @@ export default function DatabaseFormModal({
                                             }
                                             className={inputClass}
                                             placeholder="Contoh: PT Maju Jaya"
+                                        />
+                                    </Field>
+
+                                    <Field label="Kode Customer">
+                                        <input
+                                            value={customerForm.code}
+                                            onChange={(e) =>
+                                                setCustomerForm({
+                                                    ...customerForm,
+                                                    code: e.target.value,
+                                                })
+                                            }
+                                            className={inputClass}
+                                            placeholder="Contoh: CUS-001"
                                         />
                                     </Field>
 
@@ -886,6 +951,78 @@ export default function DatabaseFormModal({
                                                 )
                                             )}
                                         </select>
+                                    </Field>
+                                </div>
+
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <Field label="Botanical Name">
+                                        <input
+                                            maxLength={100}
+                                            value={productForm.botanicalName}
+                                            onChange={(e) =>
+                                                setProductForm({
+                                                    ...productForm,
+                                                    botanicalName: e.target.value,
+                                                })
+                                            }
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <Field label="FDA">
+                                        <input
+                                            maxLength={50}
+                                            value={productForm.fda}
+                                            onChange={(e) =>
+                                                setProductForm({
+                                                    ...productForm,
+                                                    fda: e.target.value,
+                                                })
+                                            }
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <Field label="FSSC">
+                                        <input
+                                            maxLength={50}
+                                            value={productForm.fssc}
+                                            onChange={(e) =>
+                                                setProductForm({
+                                                    ...productForm,
+                                                    fssc: e.target.value,
+                                                })
+                                            }
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <Field label="Kosher">
+                                        <input
+                                            maxLength={50}
+                                            value={productForm.kosher}
+                                            onChange={(e) =>
+                                                setProductForm({
+                                                    ...productForm,
+                                                    kosher: e.target.value,
+                                                })
+                                            }
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <Field label="Halal">
+                                        <input
+                                            maxLength={50}
+                                            value={productForm.halal}
+                                            onChange={(e) =>
+                                                setProductForm({
+                                                    ...productForm,
+                                                    halal: e.target.value,
+                                                })
+                                            }
+                                            className={inputClass}
+                                        />
                                     </Field>
                                 </div>
 

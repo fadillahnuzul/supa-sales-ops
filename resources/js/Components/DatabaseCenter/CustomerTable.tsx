@@ -55,7 +55,7 @@ export default function CustomerTable({
     return (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-left text-sm">
+                <table className="w-full min-w-[1200px] text-left text-sm">
                     <thead>
                         <tr className="border-b border-gray-200 text-gray-700">
                             <th className="px-3 py-2">
@@ -64,6 +64,10 @@ export default function CustomerTable({
 
                             <th className="px-3 py-2">
                                 Company
+                            </th>
+
+                            <th className="px-3 py-2">
+                                Code
                             </th>
 
                             <th className="px-3 py-2">
@@ -111,13 +115,10 @@ export default function CustomerTable({
                                                 customer.company
                                             }
                                         </div>
+                                    </td>
 
-                                        <div className="mt-1 text-xs text-gray-500">
-                                            ID:{' '}
-                                            {
-                                                customer.customerId
-                                            }
-                                        </div>
+                                    <td className="px-3 py-1">
+                                        {customer.code || '-'}
                                     </td>
 
                                     <td className="px-3 py-1">

@@ -14,6 +14,7 @@ class CustomerModel extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'code',
         'name',
         'address',
         'pic',

@@ -204,6 +204,12 @@ export default function DatabaseCenter({
                             keyword
                         ) ||
 
+                    (customer.code ?? '')
+                        .toLowerCase()
+                        .includes(
+                            keyword
+                        ) ||
+
                     (customer.address ?? '')
                         .toLowerCase()
                         .includes(

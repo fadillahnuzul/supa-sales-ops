@@ -6,6 +6,7 @@ import type { Inquiry } from '../../types/inquiry';
 interface CustomerOption {
     id: number;
     name: string;
+    code?: string | null;
     division?: string | null;
     riskLevel?: string | null;
 }
@@ -393,7 +394,9 @@ export default function InquiryFormModal({
                                             key={customer.id}
                                             value={customer.id}
                                         >
-                                            {customer.name}
+                                            {customer.code
+                                                ? `${customer.code} — ${customer.name}`
+                                                : customer.name}
                                         </option>
                                     )
                                 )}

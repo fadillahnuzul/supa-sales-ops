@@ -32,7 +32,7 @@ export default function ProductTable({
     return (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] text-left text-sm">
+                <table className="w-full min-w-[1600px] text-left text-sm">
                     <thead>
                         <tr className="border-b border-gray-200">
                             <th className="px-3 py-2">
@@ -45,6 +45,26 @@ export default function ProductTable({
 
                             <th className="px-3 py-2">
                                 Item Code
+                            </th>
+
+                            <th className="px-3 py-2">
+                                Botanical Name
+                            </th>
+
+                            <th className="px-3 py-2">
+                                FDA
+                            </th>
+
+                            <th className="px-3 py-2">
+                                FSSC
+                            </th>
+
+                            <th className="px-3 py-2">
+                                Kosher
+                            </th>
+
+                            <th className="px-3 py-2">
+                                Halal
                             </th>
 
                             <th className="px-3 py-2">
@@ -86,6 +106,26 @@ export default function ProductTable({
                                         <span className="rounded border border-gray-300 bg-gray-50 px-2 py-1 font-mono text-xs">
                                             {product.code}
                                         </span>
+                                    </td>
+
+                                    <td className="px-3 py-1">
+                                        {product.botanical_name || '-'}
+                                    </td>
+
+                                    <td className="px-3 py-1">
+                                        {product.fda || '-'}
+                                    </td>
+
+                                    <td className="px-3 py-1">
+                                        {product.fssc || '-'}
+                                    </td>
+
+                                    <td className="px-3 py-1">
+                                        {product.kosher || '-'}
+                                    </td>
+
+                                    <td className="px-3 py-1">
+                                        {product.halal || '-'}
                                     </td>
 
                                     <td className="px-3 py-1 font-semibold">
@@ -155,7 +195,7 @@ export default function ProductTable({
                         {data.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={7}
+                                    colSpan={12}
                                     className="px-5 py-10 text-center text-gray-500"
                                 >
                                     Belum ada data produk.

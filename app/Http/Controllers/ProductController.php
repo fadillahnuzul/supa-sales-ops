@@ -40,6 +40,21 @@ class ProductController extends Controller
 
                         'grade_id' => $validated['grade_id']
                             ?? null,
+
+                        'botanical_name' => $validated['botanical_name']
+                            ?? null,
+
+                        'fda' => $validated['fda']
+                            ?? null,
+
+                        'fssc' => $validated['fssc']
+                            ?? null,
+
+                        'kosher' => $validated['kosher']
+                            ?? null,
+
+                        'halal' => $validated['halal']
+                            ?? null,
                     ]);
 
                 $this->syncMaterials(
@@ -79,6 +94,21 @@ class ProductController extends Controller
                     'std_price' => $validated['std_price'],
 
                     'grade_id' => $validated['grade_id']
+                        ?? null,
+
+                    'botanical_name' => $validated['botanical_name']
+                        ?? null,
+
+                    'fda' => $validated['fda']
+                        ?? null,
+
+                    'fssc' => $validated['fssc']
+                        ?? null,
+
+                    'kosher' => $validated['kosher']
+                        ?? null,
+
+                    'halal' => $validated['halal']
                         ?? null,
                 ]);
 
@@ -537,6 +567,36 @@ class ProductController extends Controller
                     $gradeTable,
                     'id'
                 ),
+            ],
+
+            'botanical_name' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            'fda' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+
+            'fssc' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+
+            'kosher' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+
+            'halal' => [
+                'nullable',
+                'string',
+                'max:50',
             ],
 
             'materials' => [

@@ -7,6 +7,7 @@ export const customers: Customer[] = [
     {
         id: 1,
         customerId: 'cust-1',
+        code: null,
         company: '3Indy',
         address:
             'Park Royal Regency C 3/15 Buduran, Sidoarjo, Jawa Timur',
@@ -20,6 +21,7 @@ export const customers: Customer[] = [
     {
         id: 2,
         customerId: 'cust-7',
+        code: null,
         company: 'CV Berkah Snack Sejahtera',
         address:
             'Jl. Raya Sepanjang KM 14, Taman, Sidoarjo',
@@ -33,6 +35,7 @@ export const customers: Customer[] = [
     {
         id: 3,
         customerId: 'cust-5',
+        code: null,
         company: 'CV Rasa Nusantara Makmur',
         address:
             'Kawasan Industri Rungkut Megah Raya Blok D-7, Surabaya',
@@ -46,6 +49,7 @@ export const customers: Customer[] = [
     {
         id: 4,
         customerId: 'cust-10',
+        code: null,
         company: 'Hotel Majapahit Surabaya MGallery',
         address:
             'Jl. Tunjungan No. 65, Surabaya, Jawa Timur',
