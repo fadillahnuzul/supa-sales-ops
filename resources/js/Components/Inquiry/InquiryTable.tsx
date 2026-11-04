@@ -69,7 +69,7 @@ export default function InquiryTable({
     return (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[1300px] text-left text-sm">
+                <table className="w-full min-w-[1400px] text-left text-sm">
                     <thead>
                         <tr className="border-b border-gray-200">
                             <th className="w-10 px-4 py-4" />
@@ -92,6 +92,10 @@ export default function InquiryTable({
 
                             <th className="px-4 py-4">
                                 Customer
+                            </th>
+
+                            <th className="px-4 py-4">
+                                Segmentasi
                             </th>
 
                             <th className="px-4 py-4">

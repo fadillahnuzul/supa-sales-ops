@@ -35,6 +35,11 @@ export interface PicOption {
     name: string;
 }
 
+export interface SegmentationOption {
+    id: number;
+    name: string;
+}
+
 export interface ProductOption {
     id: number;
     name: string;
@@ -62,6 +67,7 @@ interface Props {
 
     customers: CustomerOption[];
     pics: PicOption[];
+    segmentations: SegmentationOption[];
 
     products: ProductOption[];
     grades: GradeOption[];
@@ -73,6 +79,7 @@ export default function Inquiry({
     inquiries,
     customers,
     pics,
+    segmentations,
     products,
     grades,
     competitorPrices,
@@ -333,6 +340,10 @@ export default function Inquiry({
 
                     pics={
                         pics
+                    }
+
+                    segmentations={
+                        segmentations
                     }
 
                     defaultPicId={auth.user?.id}

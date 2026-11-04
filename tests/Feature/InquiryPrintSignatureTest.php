@@ -34,6 +34,12 @@ beforeEach(function (): void {
         $table->string('name');
     });
 
+    Schema::create('core.customers', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('name')->nullable();
+        $table->unsignedBigInteger('segmentation_id')->nullable();
+    });
+
     Schema::create('core.employee_positions', function (Blueprint $table): void {
         $table->increments('id');
         $table->unsignedInteger('employee_id');
@@ -62,8 +68,17 @@ beforeEach(function (): void {
 
     Schema::create('sales.inquiries', function (Blueprint $table): void {
         $table->increments('id');
+        $table->string('code')->nullable();
+        $table->date('date')->nullable();
         $table->unsignedInteger('pic')->nullable();
+        $table->unsignedInteger('customer_id')->nullable();
+        $table->unsignedBigInteger('segmentation_id')->nullable();
         $table->softDeletes();
+    });
+
+    Schema::create('sales.inquiry_details', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->unsignedInteger('inquiry_id');
     });
 
     Schema::create('sales.sales_signatures', function (Blueprint $table): void {
@@ -100,10 +115,12 @@ beforeEach(function (): void {
 afterEach(function (): void {
     Schema::dropIfExists('sales.print_templates');
     Schema::dropIfExists('sales.sales_signatures');
+    Schema::dropIfExists('sales.inquiry_details');
     Schema::dropIfExists('sales.inquiries');
     Schema::dropIfExists('sales.user_role');
     Schema::dropIfExists('sales.roles');
     Schema::dropIfExists('core.segmentations');
+    Schema::dropIfExists('core.customers');
     Schema::dropIfExists('core.employee_segmentations');
     Schema::dropIfExists('core.employee_positions');
     Schema::dropIfExists('core.positions');
@@ -173,6 +190,42 @@ it('lists role 2 3 4 employees and inquiry PICs without requiring signatures', f
             'user_id' => $outsider->id,
             'name' => 'Other Employee',
         ]);
+});
+
+it('lists inquiries by the inquiry segmentation instead of the customer segmentation', function (): void {
+    $employee = createInquiryPrintEmployee('Segment', 'Manager');
+    assignInquiryPrintRole($employee, 4);
+    DB::table('core.employee_segmentations')->insert([
+        'employee_id' => $employee->id,
+        'segmentation_id' => 10,
+    ]);
+
+    $customerId = DB::table('core.customers')->insertGetId([
+        'name' => 'Customer in another segmentation',
+        'segmentation_id' => 20,
+    ]);
+    $date = now()->toDateString();
+    $visibleInquiryId = DB::table('sales.inquiries')->insertGetId([
+        'code' => 'INQ-PRINT-SEGMENT',
+        'date' => $date.' 12:00:00',
+        'pic' => $employee->id + 1,
+        'customer_id' => $customerId,
+        'segmentation_id' => 10,
+    ]);
+    DB::table('sales.inquiries')->insert([
+        'code' => 'INQ-PRINT-OTHER-SEGMENT',
+        'date' => $date.' 12:00:00',
+        'pic' => $employee->id + 1,
+        'customer_id' => $customerId,
+        'segmentation_id' => 20,
+    ]);
+
+    actAsInquiryPrintEmployee($employee);
+
+    $this->get('/inquiry-print/date-range?start_date='.$date.'&end_date='.$date)
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $visibleInquiryId);
 });
 
 it('uses only the saved signature position instead of the employee position', function (): void {

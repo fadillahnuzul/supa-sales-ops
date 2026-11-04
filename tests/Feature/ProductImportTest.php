@@ -40,6 +40,39 @@ test('product template imports multiple materials from one semicolon separated c
         ]);
 });
 
+test('product import stores an empty standard price as null', function () {
+    $csv = "name,code,std_price,grade,materials\n".
+        'Produk Tanpa Harga,PROD-NO-PRICE,,,';
+
+    $this->post(route('products.import'), [
+        'file' => File::createWithContent('product-without-price.csv', $csv),
+    ])->assertSessionHasNoErrors();
+
+    expect(ProductModel::query()
+        ->where('code', 'PROD-NO-PRICE')
+        ->value('std_price'))->toBeNull();
+});
+
+test('product import stores product details from matching spreadsheet columns', function () {
+    $csv = "name,production_name,botanical_name,fda,fssc,kosher,halal,code,std_price,grade,materials\n".
+        'Produk Detail,Nama Produksi,Nama Botani,FDA-123,FSSC-22000,Kosher-456,Halal-789,PROD-DETAIL,10000,,';
+
+    $this->post(route('products.import'), [
+        'file' => File::createWithContent('product-details.csv', $csv),
+    ])->assertSessionHasNoErrors();
+
+    $product = ProductModel::query()
+        ->where('code', 'PROD-DETAIL')
+        ->firstOrFail();
+
+    expect($product->production_name)->toBe('Nama Produksi')
+        ->and($product->botanical_name)->toBe('Nama Botani')
+        ->and($product->fda)->toBe('FDA-123')
+        ->and($product->fssc)->toBe('FSSC-22000')
+        ->and($product->kosher)->toBe('Kosher-456')
+        ->and($product->halal)->toBe('Halal-789');
+});
+
 test('product import links the first matching material record when names are duplicated', function () {
     $firstCardamom = MaterialModel::create([
         'name' => 'Cardamom',

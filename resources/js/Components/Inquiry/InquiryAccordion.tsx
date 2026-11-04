@@ -198,6 +198,11 @@ export default function InquiryAccordion({
                     }
                 </td>
 
+                {/* SEGMENTATION */}
+                <td className="px-2 py-2 text-gray-600">
+                    {inquiry.segmentation ?? '-'}
+                </td>
+
                 {/* SHIPPING RATE */}
                 <td className="whitespace-nowrap px-2 py-2 text-gray-600">
                     {formatPrice(
@@ -281,7 +286,7 @@ export default function InquiryAccordion({
                 <tr>
                     <td
                         colSpan={
-                            9
+                            10
                         }
                         className="
                             bg-[#f8faf9]

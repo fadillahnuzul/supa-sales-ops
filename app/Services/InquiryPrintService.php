@@ -15,6 +15,12 @@ class InquiryPrintService
                 '=',
                 'i.customer_id'
             )
+            ->leftJoin(
+                'core.segmentations as s',
+                's.id',
+                '=',
+                'i.segmentation_id'
+            )
             ->join(
                 'core.employee_positions as ep',
                 'ep.employee_id',
@@ -35,6 +41,7 @@ class InquiryPrintService
                 'i.date',
                 'i.etd',
                 'i.customer_id',
+                'i.segmentation_id',
                 'i.pic',
                 'i.shipping_rate',
                 'i.note',
@@ -52,7 +59,7 @@ class InquiryPrintService
                 'c.address as customer_address',
                 'c.pic as customer_pic',
                 'c.phone as customer_phone',
-                'c.divisi as segmentation',
+                's.name as segmentation',
                 'c.level as level',
                 'c.sterilization as sterilization',
             ])

@@ -11,6 +11,10 @@ export interface Inquiry {
 
     customerId: number | null;
 
+    segmentationId?: number | null;
+
+    segmentation?: string | null;
+
     shippingRate: number | null;
 
     note: string | null;

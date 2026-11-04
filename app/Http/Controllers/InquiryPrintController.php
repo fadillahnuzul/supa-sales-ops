@@ -117,12 +117,12 @@ class InquiryPrintController extends Controller
             )
             ->whereNull('i.deleted_at')
 
-            ->whereExists(function ($subquery) use ($segmentationIds) {
-                $subquery
-                    ->selectRaw('1')
-                    ->from('core.employee_segmentations as es')
-                    ->whereColumn('es.employee_id', 'i.pic')
-                    ->orWhereIn('es.segmentation_id', $segmentationIds);
+            ->where(function ($query) use ($employeeId, $segmentationIds) {
+                $query->where('i.pic', $employeeId);
+
+                if ($segmentationIds !== []) {
+                    $query->orWhereIn('i.segmentation_id', $segmentationIds);
+                }
             })
 
             ->select([

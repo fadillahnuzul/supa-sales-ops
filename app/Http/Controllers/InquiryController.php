@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Core\CustomerModel;
 use App\Models\Core\EmployeeModel;
+use App\Models\Core\SegmentationModel;
 use App\Models\Sales\InquiryModel;
-use App\Support\CustomerSegmentationFilter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -14,8 +14,24 @@ use Inertia\Response;
 
 class InquiryController extends Controller
 {
+    private function segmentationIds(): array
+    {
+        $employeeId = auth()->id();
+
+        if (! $employeeId) {
+            return [];
+        }
+
+        return DB::table('core.employee_segmentations')
+            ->where('employee_id', $employeeId)
+            ->pluck('segmentation_id')
+            ->all();
+    }
+
     public function index(): Response
     {
+        $segmentationIds = $this->segmentationIds();
+
         $inquiries = DB::table('sales.inquiries as i')
             ->leftJoin(
                 'core.customers as c',
@@ -29,9 +45,8 @@ class InquiryController extends Controller
                 '=',
                 'i.pic'
             )
-            ->whereNull('i.deleted_at');
-
-        CustomerSegmentationFilter::apply($inquiries, 'c');
+            ->whereNull('i.deleted_at')
+            ->whereIn('i.segmentation_id', $segmentationIds);
 
         $inquiries = $inquiries
             ->select([
@@ -41,15 +56,23 @@ class InquiryController extends Controller
                 'i.etd',
                 'i.pic',
                 'i.customer_id',
+                'i.segmentation_id',
                 'i.shipping_rate',
                 'i.note',
 
                 'c.name as customer_name',
                 'c.divisi as customer_division',
                 'c.level as customer_risk_level',
+                's.name as segmentation_name',
 
                 DB::raw('concat(e.first_name) as pic_name'),
             ])
+            ->leftJoin(
+                'core.segmentations as s',
+                's.id',
+                '=',
+                'i.segmentation_id'
+            )
             ->orderByDesc('i.date')
             ->orderByDesc('i.id')
             ->get();
@@ -239,6 +262,10 @@ class InquiryController extends Controller
 
                     'customerId' => $inquiry->customer_id,
 
+                    'segmentationId' => $inquiry->segmentation_id,
+
+                    'segmentation' => $inquiry->segmentation_name,
+
                     'shippingRate' => $inquiry->shipping_rate !== null
                         ? (float) $inquiry->shipping_rate
                         : null,
@@ -386,11 +413,7 @@ class InquiryController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $customerQuery = DB::table('core.customers as c');
-
-        CustomerSegmentationFilter::apply($customerQuery, 'c');
-
-        $customers = $customerQuery
+        $customers = DB::table('core.customers as c')
             ->select([
                 'c.id',
                 'c.code',
@@ -409,6 +432,11 @@ class InquiryController extends Controller
                     'riskLevel' => $customer->level,
                 ]
             );
+
+        $segmentations = SegmentationModel::query()
+            ->whereIn('id', $segmentationIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         $pics = DB::table('core.employees as e')
             ->join(
@@ -570,6 +598,8 @@ class InquiryController extends Controller
 
                 'customers' => $customers,
 
+                'segmentations' => $segmentations,
+
                 'pics' => $pics,
 
                 'products' => $products,
@@ -588,6 +618,8 @@ class InquiryController extends Controller
      */
     public function store(Request $request)
     {
+        $segmentationIds = $this->segmentationIds();
+
         $validated = $request->validate([
             'code' => [
                 'required',
@@ -621,6 +653,13 @@ class InquiryController extends Controller
                 Rule::exists(CustomerModel::class, 'id'),
             ],
 
+            'segmentation_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(SegmentationModel::class, 'id')
+                    ->where(fn ($query) => $query->whereIn('id', $segmentationIds)),
+            ],
+
             'shipping_rate' => [
                 'nullable',
                 'numeric',
@@ -646,6 +685,8 @@ class InquiryController extends Controller
 
             'customer_id' => $validated['customer_id'] ?? null,
 
+            'segmentation_id' => $validated['segmentation_id'] ?? null,
+
             'shipping_rate' => $validated['shipping_rate'] ?? null,
 
             'note' => $validated['note'] ?? null,
@@ -668,6 +709,8 @@ class InquiryController extends Controller
         Request $request,
         int $inquiry
     ) {
+        $segmentationIds = $this->segmentationIds();
+
         $existing =
             DB::table('sales.inquiries')
                 ->where('id', $inquiry)
@@ -719,6 +762,13 @@ class InquiryController extends Controller
                 Rule::exists(CustomerModel::class, 'id'),
             ],
 
+            'segmentation_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(SegmentationModel::class, 'id')
+                    ->where(fn ($query) => $query->whereIn('id', $segmentationIds)),
+            ],
+
             'shipping_rate' => [
                 'nullable',
                 'numeric',
@@ -748,6 +798,8 @@ class InquiryController extends Controller
                 'pic' => $validated['pic'] ?? null,
 
                 'customer_id' => $validated['customer_id'] ?? null,
+
+                'segmentation_id' => $validated['segmentation_id'] ?? null,
 
                 'shipping_rate' => $validated['shipping_rate'] ?? null,
 

@@ -16,6 +16,11 @@ interface PicOption {
     name: string;
 }
 
+interface SegmentationOption {
+    id: number;
+    name: string;
+}
+
 interface Props {
     open: boolean;
 
@@ -24,6 +29,8 @@ interface Props {
     customers: CustomerOption[];
 
     pics: PicOption[];
+
+    segmentations: SegmentationOption[];
 
     defaultPicId?: number;
 
@@ -40,6 +47,8 @@ interface InquiryFormState {
     pic: number | string;
 
     customerId: string;
+
+    segmentationId: string;
 
     shippingRate: string;
 
@@ -69,6 +78,7 @@ const initialForm: InquiryFormState = {
     etd: '',
     pic: '',
     customerId: '',
+    segmentationId: '',
     shippingRate: '',
     note: '',
 };
@@ -78,6 +88,7 @@ export default function InquiryFormModal({
     inquiry = null,
     customers,
     pics,
+    segmentations,
     defaultPicId,
     onClose,
 }: Props) {
@@ -102,6 +113,7 @@ export default function InquiryFormModal({
                 etd: inquiry.etd?.slice(0, 10) ?? '',
                 pic: inquiry.pic ?? '',
                 customerId: inquiry.customerId?.toString() ?? '',
+                segmentationId: inquiry.segmentationId?.toString() ?? '',
                 shippingRate: inquiry.shippingRate?.toString() ?? '',
                 note: inquiry.note ?? '',
             }
@@ -140,6 +152,7 @@ export default function InquiryFormModal({
             etd: form.etd || null,
             pic: form.pic ? Number(form.pic) : null,
             customer_id: form.customerId ? Number(form.customerId) : null,
+            segmentation_id: form.segmentationId ? Number(form.segmentationId) : null,
             shipping_rate: form.shippingRate ? Number(form.shippingRate) : null,
             note: form.note || null,
         };
@@ -400,6 +413,27 @@ export default function InquiryFormModal({
                                         </option>
                                     )
                                 )}
+                            </select>
+                        </Field>
+
+                        {/* SEGMENTATION */}
+                        <Field label="Segmentasi">
+                            <select
+                                value={form.segmentationId}
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        segmentationId: e.target.value,
+                                    })
+                                }
+                                className={inputClass}
+                            >
+                                <option value="">Pilih Segmentasi</option>
+                                {segmentations.map((segmentation) => (
+                                    <option key={segmentation.id} value={segmentation.id}>
+                                        {segmentation.name}
+                                    </option>
+                                ))}
                             </select>
                         </Field>
 

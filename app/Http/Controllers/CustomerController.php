@@ -564,12 +564,12 @@ class CustomerController extends Controller
         $validator = Validator::make($validated, [
             'code' => ['nullable', 'string', 'max:50'],
             'name' => ['required', 'string', 'max:255'],
-            'address' => ['required', 'string', 'max:255'],
-            'segmentation_id' => ['required', 'integer', Rule::exists(SegmentationModel::class, 'id')],
-            'level' => ['required', Rule::in(['Low', 'Medium', 'High'])],
-            'divisi' => ['required', Rule::in(['Industri', 'SME', 'Low Cost', 'All'])],
-            'sterilization' => ['required', Rule::in(['NS', 'S', 'SS'])],
-            'pic' => ['required', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'segmentation_id' => ['nullable', 'integer', Rule::exists(SegmentationModel::class, 'id')],
+            'level' => ['nullable', Rule::in(['Low', 'Medium', 'High'])],
+            'divisi' => ['nullable', Rule::in(['Industri', 'SME', 'Low Cost', 'All'])],
+            'sterilization' => ['nullable', Rule::in(['NS', 'S', 'SS'])],
+            'pic' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
         ]);
 

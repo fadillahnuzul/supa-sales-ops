@@ -28,6 +28,17 @@ beforeEach(function () {
     Schema::create('core.customers', function (Blueprint $table): void {
         $table->increments('id');
         $table->string('name')->nullable();
+        $table->unsignedBigInteger('segmentation_id')->nullable();
+    });
+
+    Schema::create('core.segmentations', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('name');
+    });
+
+    Schema::create('core.employee_segmentations', function (Blueprint $table): void {
+        $table->unsignedInteger('employee_id');
+        $table->unsignedBigInteger('segmentation_id');
     });
 
     Schema::create('sales.user_role', function (Blueprint $table): void {
@@ -42,6 +53,7 @@ beforeEach(function () {
         $table->date('etd')->nullable();
         $table->unsignedInteger('pic')->nullable();
         $table->unsignedInteger('customer_id')->nullable();
+        $table->unsignedBigInteger('segmentation_id')->nullable();
         $table->decimal('shipping_rate', 15, 2)->nullable();
         $table->text('note')->nullable();
         $table->timestamps();
@@ -52,6 +64,8 @@ beforeEach(function () {
 afterEach(function () {
     Schema::dropIfExists('sales.inquiries');
     Schema::dropIfExists('sales.user_role');
+    Schema::dropIfExists('core.employee_segmentations');
+    Schema::dropIfExists('core.segmentations');
     Schema::dropIfExists('core.customers');
     Schema::dropIfExists('core.employees');
     DB::statement('DETACH DATABASE sales');
@@ -92,6 +106,14 @@ it('updates inquiry header fields through the existing update route', function (
     DB::table('core.customers')->insert([
         'name' => 'Updated customer',
     ]);
+    DB::table('core.segmentations')->insert([
+        'id' => 12,
+        'name' => 'Food Processing',
+    ]);
+    DB::table('core.employee_segmentations')->insert([
+        'employee_id' => $employee->id,
+        'segmentation_id' => 12,
+    ]);
     $customerId = (int) DB::table('core.customers')->value('id');
     $inquiryId = (int) DB::table('sales.inquiries')->value('id');
 
@@ -101,6 +123,7 @@ it('updates inquiry header fields through the existing update route', function (
         'etd' => '2026-10-20',
         'pic' => $employee->id,
         'customer_id' => $customerId,
+        'segmentation_id' => 12,
         'shipping_rate' => 12500,
         'note' => 'Updated note',
     ])->assertRedirect()->assertSessionHasNoErrors();
@@ -112,8 +135,43 @@ it('updates inquiry header fields through the existing update route', function (
         ->and($inquiry->etd)->toBe('2026-10-20')
         ->and((int) $inquiry->pic)->toBe($employee->id)
         ->and((int) $inquiry->customer_id)->toBe($customerId)
+        ->and((int) $inquiry->segmentation_id)->toBe(12)
         ->and((float) $inquiry->shipping_rate)->toBe(12500.0)
         ->and($inquiry->note)->toBe('Updated note');
+});
+
+it('creates an inquiry with its own segmentation independently of its customer segmentation', function () {
+    $employee = createAuthenticatedInquiryEditor();
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+    DB::table('core.segmentations')->insert([
+        ['id' => 10, 'name' => 'Food Processing'],
+        ['id' => 20, 'name' => 'HORECA'],
+    ]);
+    DB::table('core.employee_segmentations')->insert([
+        'employee_id' => $employee->id,
+        'segmentation_id' => 10,
+    ]);
+    $customerId = DB::table('core.customers')->insertGetId([
+        'name' => 'HORECA customer',
+        'segmentation_id' => 20,
+    ]);
+
+    $this->post(route('inquiry.store'), [
+        'code' => 'INQ-NEW-SEGMENT',
+        'date' => '2026-10-10',
+        'pic' => $employee->id,
+        'customer_id' => $customerId,
+        'segmentation_id' => 10,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('sales.inquiries', [
+        'code' => 'INQ-NEW-SEGMENT',
+        'customer_id' => $customerId,
+        'segmentation_id' => 10,
+    ]);
 });
 
 it('rejects an inquiry code already used by another inquiry', function () {

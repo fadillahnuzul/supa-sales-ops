@@ -35,6 +35,7 @@ beforeEach(function () {
     Schema::create('core.customers', function (Blueprint $table): void {
         $table->increments('id');
         $table->string('name')->nullable();
+        $table->unsignedBigInteger('segmentation_id')->nullable();
     });
 
     Schema::create('sales.user_role', function (Blueprint $table): void {
@@ -48,6 +49,7 @@ beforeEach(function () {
         $table->date('date');
         $table->unsignedInteger('pic')->nullable();
         $table->unsignedInteger('customer_id')->nullable();
+        $table->unsignedBigInteger('segmentation_id')->nullable();
         $table->softDeletes();
         $table->timestamps();
     });
@@ -183,6 +185,59 @@ it('lists unconverted inquiries alongside job orders assigned to the employee', 
             'so_no' => 'SO-001',
             'po_no' => 'PO-001',
         ]);
+});
+
+it('lists inquiries by their inquiry segmentation even when their customer has another segmentation', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-SEGMENT-001',
+        'first_name' => 'Segment',
+        'last_name' => 'Manager',
+        'username' => 'job.order.segment.manager',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 1,
+    ]);
+
+    DB::table('core.employee_segmentations')->insert([
+        'employee_id' => $employee->id,
+        'segmentation_id' => 10,
+    ]);
+
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $date = now()->toDateString();
+    $customerId = DB::table('core.customers')->insertGetId([
+        'name' => 'Customer in another segmentation',
+        'segmentation_id' => 20,
+    ]);
+    $inquiryId = DB::table('sales.inquiries')->insertGetId([
+        'code' => 'INQ-JO-SEGMENT',
+        'date' => $date,
+        'pic' => $employee->id + 1,
+        'customer_id' => $customerId,
+        'segmentation_id' => 10,
+    ]);
+    DB::table('sales.inquiries')->insert([
+        'code' => 'INQ-JO-OTHER-SEGMENT',
+        'date' => $date,
+        'pic' => $employee->id + 1,
+        'segmentation_id' => 20,
+    ]);
+
+    $this->get(route('job-orders.list', [
+        'start_date' => $date,
+        'end_date' => $date,
+    ]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.inquiry_id', $inquiryId);
 });
 
 it('creates a job order from an inquiry without a database connection error', function () {

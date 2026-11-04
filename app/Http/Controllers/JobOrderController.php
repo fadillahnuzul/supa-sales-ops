@@ -31,7 +31,7 @@ class JobOrderController extends Controller
         abort_unless(in_array($this->roleId($request), [2, 3, 5], true), 403);
     }
 
-    /** Scope by employees' segmentation assignment (adapt if role All overrides this). */
+    /** Return the segmentations assigned to the employee. */
     private function segmentationIds(Request $request): array
     {
         return DB::table('core.employee_segmentations')
@@ -60,15 +60,7 @@ class JobOrderController extends Controller
             $q->where('i.pic', $employeeId);
 
             if (! empty($segmentationIds)) {
-                $q->orWhereExists(function ($subquery) use (
-                    $segmentationIds
-                ) {
-                    $subquery
-                        ->selectRaw('1')
-                        ->from('core.employee_segmentations as es')
-                        ->whereColumn('es.employee_id', 'i.pic')
-                        ->whereIn('es.segmentation_id', $segmentationIds);
-                });
+                $q->orWhereIn('i.segmentation_id', $segmentationIds);
             }
         });
     }

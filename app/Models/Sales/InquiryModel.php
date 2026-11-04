@@ -4,11 +4,11 @@ namespace App\Models\Sales;
 
 use App\Models\Core\CustomerModel;
 use App\Models\Core\EmployeeModel;
+use App\Models\Core\SegmentationModel;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InquiryModel extends Model
 {
@@ -22,6 +22,7 @@ class InquiryModel extends Model
         'etd',
         'pic',
         'customer_id',
+        'segmentation_id',
         'shipping_rate',
         'note',
     ];
@@ -42,9 +43,13 @@ class InquiryModel extends Model
         return $this->belongsTo(EmployeeModel::class, 'pic');
     }
 
+    public function segmentation(): BelongsTo
+    {
+        return $this->belongsTo(SegmentationModel::class, 'segmentation_id');
+    }
+
     public function details(): HasMany
     {
         return $this->hasMany(InquiryDetailModel::class, 'inquiry_id');
     }
-
 }

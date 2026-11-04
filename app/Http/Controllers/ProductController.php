@@ -177,6 +177,12 @@ class ProductController extends Controller
         $sheet = SpreadsheetFile::buildXlsx([
             [
                 'name',
+                'production_name',
+                'botanical_name',
+                'fda',
+                'fssc',
+                'kosher',
+                'halal',
                 'code',
                 'std_price',
                 'grade',
@@ -184,6 +190,12 @@ class ProductController extends Controller
             ],
             [
                 'Racikan Lada Kapulaga',
+                'Lada Kapulaga Steril',
+                'Piper nigrum',
+                'BPOM RI MD 8675309',
+                'FSSC 22000',
+                'Kosher Certificate 12345',
+                'Halal Certificate 67890',
                 'PROD-DEMO-001',
                 '125000',
                 '',
@@ -243,9 +255,9 @@ class ProductController extends Controller
                 $prepared = $this->validateProductImportRow($row, $gradesByName);
                 $codeKey = mb_strtolower($prepared['code']);
 
-                if (isset($seenCodes[$codeKey])) {
-                    throw new \InvalidArgumentException('Kode produk duplikat di dalam file.');
-                }
+                // if (isset($seenCodes[$codeKey])) {
+                //     throw new \InvalidArgumentException('Kode produk duplikat di dalam file.');
+                // }
 
                 $seenCodes[$codeKey] = true;
                 $preparedRows[] = $prepared;
@@ -339,6 +351,12 @@ class ProductController extends Controller
                 foreach ($preparedRows as $index => $row) {
                     $products[$index] = ProductModel::create([
                         'name' => $row['name'],
+                        'production_name' => $row['production_name'],
+                        'botanical_name' => $row['botanical_name'],
+                        'fda' => $row['fda'],
+                        'fssc' => $row['fssc'],
+                        'kosher' => $row['kosher'],
+                        'halal' => $row['halal'],
                         'code' => $row['code'],
                         'std_price' => $row['std_price'],
                         'grade_id' => $row['grade_id'],
@@ -395,6 +413,12 @@ class ProductController extends Controller
 
         $aliases = [
             'name' => ['name', 'product name', 'nama produk'],
+            'production_name' => ['production name', 'nama produksi'],
+            'botanical_name' => ['botanical name', 'nama botani'],
+            'fda' => ['fda'],
+            'fssc' => ['fssc'],
+            'kosher' => ['kosher'],
+            'halal' => ['halal'],
             'code' => ['code', 'item code', 'product code', 'kode produk'],
             'std_price' => ['std price', 'standard price', 'harga standar', 'harga'],
             'grade' => ['grade', 'mutu'],
@@ -440,6 +464,7 @@ class ProductController extends Controller
     {
         $name = trim((string) ($row['name'] ?? ''));
         $code = trim((string) ($row['code'] ?? ''));
+        $stdPrice = trim((string) ($row['std_price'] ?? ''));
         $gradeName = trim((string) ($row['grade'] ?? ''));
         $gradeMatches = $gradeName === ''
             ? collect()
@@ -453,23 +478,41 @@ class ProductController extends Controller
             );
         }
 
+        $optionalText = static function (string $field) use ($row): ?string {
+            $value = trim((string) ($row[$field] ?? ''));
+
+            return $value === '' ? null : $value;
+        };
+
         $validator = Validator::make([
             'name' => $name,
             'code' => $code,
-            'std_price' => trim((string) ($row['std_price'] ?? '')),
+            'production_name' => $optionalText('production_name'),
+            'botanical_name' => $optionalText('botanical_name'),
+            'fda' => $optionalText('fda'),
+            'fssc' => $optionalText('fssc'),
+            'kosher' => $optionalText('kosher'),
+            'halal' => $optionalText('halal'),
+            'std_price' => $stdPrice === '' ? null : $stdPrice,
             'grade_id' => $gradeMatches->first()?->getKey(),
         ], [
             'name' => ['required', 'string', 'max:255'],
             'code' => [
-                'required',
+                'nullable',
                 'string',
                 'max:50',
-                Rule::unique(
-                    config('database.default').'.'.(new ProductModel)->getTable(),
-                    'code'
-                ),
+                // Rule::unique(
+                //     config('database.default').'.'.(new ProductModel)->getTable(),
+                //     'code'
+                // ),
             ],
-            'std_price' => ['required', 'numeric', 'min:0'],
+            'production_name' => ['nullable', 'string', 'max:100'],
+            'botanical_name' => ['nullable', 'string', 'max:100'],
+            'fda' => ['nullable', 'string', 'max:50'],
+            'fssc' => ['nullable', 'string', 'max:50'],
+            'kosher' => ['nullable', 'string', 'max:50'],
+            'halal' => ['nullable', 'string', 'max:50'],
+            'std_price' => ['nullable', 'numeric'],
             'grade_id' => [
                 'nullable',
                 'integer',
@@ -514,6 +557,12 @@ class ProductController extends Controller
             'name' => $validated['name'],
             'code' => $validated['code'],
             'std_price' => $validated['std_price'],
+            'production_name' => $validated['production_name'] ?? null,
+            'botanical_name' => $validated['botanical_name'] ?? null,
+            'fda' => $validated['fda'] ?? null,
+            'fssc' => $validated['fssc'] ?? null,
+            'kosher' => $validated['kosher'] ?? null,
+            'halal' => $validated['halal'] ?? null,
             'grade_id' => $validated['grade_id'] ?? null,
             'material_names' => array_values($materialNames),
         ];
@@ -556,7 +605,6 @@ class ProductController extends Controller
             'std_price' => [
                 'required',
                 'numeric',
-                'min:0',
             ],
 
             'grade_id' => [
