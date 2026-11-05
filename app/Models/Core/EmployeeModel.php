@@ -73,6 +73,11 @@ class EmployeeModel extends Authenticatable
         return $this->hasOne(UserRoleModel::class, 'employee_id', 'id');
     }
 
+    public function position(): HasMany
+    {
+        return $this->hasMany(EmployeePositionModel::class, 'employee_id', 'id');
+    }
+
     public function hasSystemAccess(): bool
     {
         $roleId = $this->role?->role_id;

@@ -303,7 +303,7 @@ class InquiryController extends Controller
                     */
                     'details' => $detailRows
                         ->map(
-                            fn ($detail) => [
+                            fn($detail) => [
                                 'id' => $detail->id,
 
                                 'productId' => $detail->product_id,
@@ -424,7 +424,7 @@ class InquiryController extends Controller
             ->orderBy('c.name')
             ->get()
             ->map(
-                fn ($customer) => [
+                fn($customer) => [
                     'id' => $customer->id,
                     'code' => $customer->code,
                     'name' => $customer->name,
@@ -438,26 +438,19 @@ class InquiryController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $pics = DB::table('core.employees as e')
-            ->join(
-                'core.employee_positions as ep',
-                'ep.employee_id',
-                '=',
-                'e.id'
-            )
-            ->join(
-                'core.positions as p',
-                'p.id',
-                '=',
-                'ep.position_id'
-            )
-            ->where(
-                'p.division_id',
-                2
-            )
+        $pics = EmployeeModel::query()
+            ->with('position', 'position.position', 'role')
+            ->where(function ($query) {
+                $query->whereHas('role', function ($query) {
+                    $query->where('role_id', '>', 1);
+                })
+                    ->orWhereHas('position.position', function ($query) {
+                        $query->whereIn('division_id', [2]);
+                    });
+            })
             ->select([
-                'e.id',
-                DB::raw("CONCAT(e.first_name, ' ', e.last_name) as name"),
+                'id',
+                DB::raw("CONCAT(first_name, ' ', last_name) as name"),
             ])
             ->distinct()
             ->orderBy('name')
@@ -473,7 +466,7 @@ class InquiryController extends Controller
             ->orderBy('name')
             ->get()
             ->map(
-                fn ($product) => [
+                fn($product) => [
                     'id' => $product->id,
 
                     'name' => $product->name,
@@ -572,7 +565,7 @@ class InquiryController extends Controller
             )
             ->get()
             ->map(
-                fn ($price) => [
+                fn($price) => [
                     'id' => $price->id,
 
                     'competitorId' => $price->competitor_id,
@@ -657,7 +650,7 @@ class InquiryController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists(SegmentationModel::class, 'id')
-                    ->where(fn ($query) => $query->whereIn('id', $segmentationIds)),
+                    ->where(fn($query) => $query->whereIn('id', $segmentationIds)),
             ],
 
             'shipping_rate' => [
@@ -713,9 +706,9 @@ class InquiryController extends Controller
 
         $existing =
             DB::table('sales.inquiries')
-                ->where('id', $inquiry)
-                ->whereNull('deleted_at')
-                ->first();
+            ->where('id', $inquiry)
+            ->whereNull('deleted_at')
+            ->first();
 
         abort_if(
             ! $existing,
@@ -766,7 +759,7 @@ class InquiryController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists(SegmentationModel::class, 'id')
-                    ->where(fn ($query) => $query->whereIn('id', $segmentationIds)),
+                    ->where(fn($query) => $query->whereIn('id', $segmentationIds)),
             ],
 
             'shipping_rate' => [
