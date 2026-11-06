@@ -1,4 +1,5 @@
 import {
+    ChevronDown,
     Plus,
     RotateCcw,
     Save,
@@ -11,8 +12,15 @@ import {
 
 import {
     useEffect,
+    useId,
+    useLayoutEffect,
+    useRef,
     useState,
 } from 'react';
+
+import {
+    createPortal,
+} from 'react-dom';
 
 import type {
     Inquiry,
@@ -35,6 +43,11 @@ interface ProductOption {
 interface GradeOption {
     id: number;
     name: string;
+}
+
+interface SearchableSelectOption {
+    value: string;
+    label: string;
 }
 
 interface CompetitorPrice {
@@ -82,6 +95,232 @@ const priceInputClass = `
     ${inputClass}
     text-right
 `;
+
+function SearchableSelect({
+    value,
+    options,
+    onChange,
+    placeholder,
+    label,
+    disabled = false,
+}: {
+    value: string;
+    options: SearchableSelectOption[];
+    onChange: (value: string) => void;
+    placeholder: string;
+    label: string;
+    disabled?: boolean;
+}) {
+    const listId = useId();
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [
+        isOpen,
+        setIsOpen,
+    ] = useState(false);
+    const [
+        searchTerm,
+        setSearchTerm,
+    ] = useState('');
+    const [
+        activeIndex,
+        setActiveIndex,
+    ] = useState(0);
+    const [
+        dropdownPosition,
+        setDropdownPosition,
+    ] = useState<{
+        top: number;
+        left: number;
+        width: number;
+        maxHeight: number;
+    } | null>(null);
+
+    const selectedLabel =
+        options.find((option) => option.value === value)?.label ??
+        placeholder;
+
+    const filteredOptions = [
+        {
+            value: '',
+            label: placeholder,
+        },
+        ...options,
+    ].filter((option) =>
+        option.label
+            .toLocaleLowerCase()
+            .includes(searchTerm.trim().toLocaleLowerCase())
+    );
+
+    useLayoutEffect(() => {
+        if (!isOpen) {
+            setDropdownPosition(null);
+
+            return;
+        }
+
+        function updateDropdownPosition() {
+            const input = inputRef.current;
+
+            if (!input) {
+                return;
+            }
+
+            const bounds = input.getBoundingClientRect();
+            const width = Math.min(
+                Math.max(bounds.width, 280),
+                window.innerWidth - 16
+            );
+            const spaceBelow = window.innerHeight - bounds.bottom - 8;
+            const spaceAbove = bounds.top - 8;
+            const showAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
+            const availableHeight = showAbove
+                ? spaceAbove
+                : spaceBelow;
+            const maxHeight = Math.max(
+                100,
+                Math.min(256, availableHeight)
+            );
+
+            setDropdownPosition({
+                top: showAbove
+                    ? Math.max(8, bounds.top - maxHeight - 4)
+                    : bounds.bottom + 4,
+                left: Math.max(
+                    8,
+                    Math.min(bounds.left, window.innerWidth - width - 8)
+                ),
+                width,
+                maxHeight,
+            });
+        }
+
+        updateDropdownPosition();
+        window.addEventListener('resize', updateDropdownPosition);
+        window.addEventListener('scroll', updateDropdownPosition, true);
+
+        return () => {
+            window.removeEventListener('resize', updateDropdownPosition);
+            window.removeEventListener('scroll', updateDropdownPosition, true);
+        };
+    }, [
+        isOpen,
+    ]);
+
+    function selectOption(option: SearchableSelectOption) {
+        onChange(option.value);
+        setSearchTerm('');
+        setIsOpen(false);
+    }
+
+    return (
+        <div className="relative w-full">
+            <input
+                ref={inputRef}
+                type="text"
+                role="combobox"
+                aria-label={label}
+                aria-autocomplete="list"
+                aria-expanded={isOpen}
+                aria-controls={listId}
+                aria-activedescendant={
+                    isOpen && filteredOptions.length > 0
+                        ? `${listId}-${activeIndex}`
+                        : undefined
+                }
+                autoComplete="off"
+                disabled={disabled}
+                value={isOpen ? searchTerm : selectedLabel}
+                placeholder={placeholder}
+                onFocus={() => {
+                    setSearchTerm('');
+                    setActiveIndex(0);
+                    setIsOpen(true);
+                }}
+                onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setActiveIndex(0);
+                    setIsOpen(true);
+                }}
+                onBlur={() => {
+                    setIsOpen(false);
+                    setSearchTerm('');
+                }}
+                onKeyDown={(event) => {
+                    if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        setActiveIndex((index) =>
+                            Math.min(index + 1, filteredOptions.length - 1)
+                        );
+                    } else if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        setActiveIndex((index) => Math.max(index - 1, 0));
+                    } else if (event.key === 'Enter' && filteredOptions.length > 0) {
+                        event.preventDefault();
+                        selectOption(filteredOptions[activeIndex] ?? filteredOptions[0]);
+                    } else if (event.key === 'Escape') {
+                        setIsOpen(false);
+                        setSearchTerm('');
+                    }
+                }}
+                className={`${inputClass} pr-7 ${disabled ? 'cursor-not-allowed bg-gray-50 text-gray-400' : ''}`}
+            />
+
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
+                <ChevronDown
+                    size={14}
+                    className={isOpen ? 'rotate-180' : ''}
+                    aria-hidden="true"
+                />
+            </span>
+
+            {isOpen &&
+                dropdownPosition &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div
+                        id={listId}
+                        role="listbox"
+                        aria-label={label}
+                        className="overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-xs shadow-lg"
+                        style={{
+                            position: 'fixed',
+                            zIndex: 50,
+                            top: dropdownPosition.top,
+                            left: dropdownPosition.left,
+                            width: dropdownPosition.width,
+                            maxHeight: dropdownPosition.maxHeight,
+                        }}
+                    >
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((option, index) => (
+                                <div
+                                    id={`${listId}-${index}`}
+                                    key={option.value}
+                                    role="option"
+                                    aria-selected={option.value === value}
+                                    className={`cursor-pointer px-3 py-2 ${
+                                        index === activeIndex
+                                            ? 'bg-emerald-50 text-emerald-800'
+                                            : 'text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onMouseEnter={() => setActiveIndex(index)}
+                                    onClick={() => selectOption(option)}
+                                >
+                                    {option.label}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="px-3 py-2 text-gray-500">
+                                Tidak ada hasil
+                            </div>
+                        )}
+                    </div>,
+                    document.body
+                )}
+        </div>
+    );
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -948,52 +1187,18 @@ export default function InquiryDetailTable({
 
                                         {/* PRODUCT */}
                                         <EditableCell>
-                                            <select
-                                                value={
-                                                    row.productId ??
-                                                    ''
+                                            <SearchableSelect
+                                                value={row.productId === null ? '' : String(row.productId)}
+                                                options={products.map((product) => ({
+                                                    value: String(product.id),
+                                                    label: `${product.code} - ${product.name}`,
+                                                }))}
+                                                onChange={(value) =>
+                                                    handleProductChange(row, value)
                                                 }
-
-                                                onChange={(
-                                                    e
-                                                ) =>
-                                                    handleProductChange(
-                                                        row,
-                                                        e
-                                                            .target
-                                                            .value
-                                                    )
-                                                }
-
-                                                className={
-                                                    inputClass
-                                                }
-                                            >
-                                                <option value="">
-                                                    Pilih
-                                                    Product
-                                                </option>
-
-                                                {products.map(
-                                                    (
-                                                        product
-                                                    ) => (
-                                                        <option
-                                                            key={
-                                                                product.id
-                                                            }
-
-                                                            value={
-                                                                product.id
-                                                            }
-                                                        >
-                                                            {
-                                                                product.name
-                                                            }
-                                                        </option>
-                                                    )
-                                                )}
-                                            </select>
+                                                placeholder="Pilih Product"
+                                                label="Product"
+                                            />
                                         </EditableCell>
 
                                         {/* ITEM CODE */}
@@ -1005,11 +1210,8 @@ export default function InquiryDetailTable({
                                                         ?.code ??
                                                     ''
                                                 }
-
                                                 readOnly
-
                                                 placeholder="Auto"
-
                                                 className={`
                                                     ${inputClass}
                                                     cursor-not-allowed
@@ -1021,59 +1223,22 @@ export default function InquiryDetailTable({
 
                                         {/* GRADE */}
                                         <EditableCell>
-                                            <select
-                                                value={
-                                                    row.gradeId ??
-                                                    ''
-                                                }
-
-                                                onChange={(
-                                                    e
-                                                ) =>
+                                            <SearchableSelect
+                                                value={row.gradeId === null ? '' : String(row.gradeId)}
+                                                options={grades.map((grade) => ({
+                                                    value: String(grade.id),
+                                                    label: grade.name,
+                                                }))}
+                                                onChange={(value) =>
                                                     updateRow(
                                                         row.id,
                                                         'gradeId',
-                                                        e
-                                                            .target
-                                                            .value
-                                                            ? Number(
-                                                                e
-                                                                    .target
-                                                                    .value
-                                                            )
-                                                            : null
+                                                        value ? Number(value) : null
                                                     )
                                                 }
-
-                                                className={
-                                                    inputClass
-                                                }
-                                            >
-                                                <option value="">
-                                                    Pilih
-                                                    Grade
-                                                </option>
-
-                                                {grades.map(
-                                                    (
-                                                        grade
-                                                    ) => (
-                                                        <option
-                                                            key={
-                                                                grade.id
-                                                            }
-
-                                                            value={
-                                                                grade.id
-                                                            }
-                                                        >
-                                                            {
-                                                                grade.name
-                                                            }
-                                                        </option>
-                                                    )
-                                                )}
-                                            </select>
+                                                placeholder="Pilih Grade"
+                                                label="Grade"
+                                            />
                                         </EditableCell>
 
                                         {/* QTY */}
@@ -1123,48 +1288,23 @@ export default function InquiryDetailTable({
 
                                         {/* SOURCE AP */}
                                         <EditableCell>
-                                            <select
-                                                value={
-                                                    row.sourceAP ??
-                                                    ''
+                                            <SearchableSelect
+                                                value={row.sourceAP === null ? '' : String(row.sourceAP)}
+                                                options={getSourceAPOptions(row.productId).map((source) => ({
+                                                    value: String(source.id),
+                                                    label: source.name,
+                                                }))}
+                                                onChange={(value) =>
+                                                    handleSourceAPChange(row, value)
                                                 }
-
-                                                disabled={
-                                                    !row.productId
-                                                }
-
-                                                onChange={(e) =>
-                                                    handleSourceAPChange(
-                                                        row,
-                                                        e.target.value
-                                                    )
-                                                }
-
-                                                className={`${inputClass}${!row.productId
-                                                    ? 'cursor-not-allowed bg-gray-50 text-gray-400'
-                                                    : ''
-                                                    }
-        `}
-                                            >
-                                                <option value="">
-                                                    {row.productId
-                                                        ? 'Pilih Source AP'
-                                                        : 'Pilih Product dahulu'}
-                                                </option>
-
-                                                {getSourceAPOptions(
+                                                placeholder={
                                                     row.productId
-                                                ).map(
-                                                    (source) => (
-                                                        <option
-                                                            key={source.id}
-                                                            value={source.id}
-                                                        >
-                                                            {source.name}
-                                                        </option>
-                                                    )
-                                                )}
-                                            </select>
+                                                        ? 'Pilih Source AP'
+                                                        : 'Pilih Product dahulu'
+                                                }
+                                                label="Source AP"
+                                                disabled={!row.productId}
+                                            />
                                         </EditableCell>
 
                                         {/* ALTERNATIVE PRICE */}
