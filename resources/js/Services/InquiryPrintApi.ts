@@ -281,10 +281,10 @@ export async function downloadInquiryWord(
     payload: any
 ) {
     const response =
-        await web.post(
+        await web.get(
             `/inquiries/print/${id}/word`,
-            payload,
             {
+                params: payload,
                 responseType: "blob",
             }
         );
@@ -303,10 +303,10 @@ export async function downloadInquiryPdf(
     payload: any
 ) {
     const response =
-        await web.post(
+        await web.get(
             `/inquiries/print/${id}/pdf`,
-            payload,
             {
+                params: payload,
                 responseType: "blob",
             }
         );

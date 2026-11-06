@@ -293,10 +293,9 @@ it('uses only the saved signature position instead of the employee position', fu
     $this->app->instance(InquiryPrintService::class, $printService);
     actAsInquiryPrintEmployee($employee);
 
-    $response = $this->post('/inquiries/print/1/word', [
-        'template_id' => 1,
-        'signature_user_id' => $employee->id,
-    ]);
+    $response = $this->get(
+        '/inquiries/print/1/word?template_id=1&signature_user_id='.$employee->id
+    );
 
     $response->assertOk()
         ->assertHeader(
@@ -346,4 +345,13 @@ it('uses only the saved signature position instead of the employee position', fu
     expect($signatureDocument)
         ->toContain('Sales Coordinator')
         ->not->toContain('Regional Sales');
+});
+
+it('routes GET PDF downloads to the export validation', function (): void {
+    $employee = createInquiryPrintEmployee('PDF', 'Sales');
+    actAsInquiryPrintEmployee($employee);
+
+    $this->get('/inquiries/print/1/pdf')
+        ->assertRedirect()
+        ->assertSessionHasErrors('template_id');
 });

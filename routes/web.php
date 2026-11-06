@@ -55,9 +55,17 @@ Route::middleware('auth')->group(function () {
             [InquiryPrintController::class, 'exportExcel']
         )->whereNumber('id');
 
+        Route::get(
+            '/{id}/word',
+            [InquiryPrintController::class, 'exportWord']
+        )->whereNumber('id');
         Route::post(
             '/{id}/word',
             [InquiryPrintController::class, 'exportWord']
+        )->whereNumber('id');
+        Route::get(
+            '/{id}/pdf',
+            [InquiryPrintController::class, 'exportPdf']
         )->whereNumber('id');
         Route::post(
             '/{id}/pdf',
