@@ -37,6 +37,11 @@ beforeEach(function (): void {
     Schema::create('core.customers', function (Blueprint $table): void {
         $table->increments('id');
         $table->string('name')->nullable();
+        $table->string('address')->nullable();
+        $table->string('pic')->nullable();
+        $table->string('phone')->nullable();
+        $table->string('level')->nullable();
+        $table->string('sterilization')->nullable();
         $table->unsignedBigInteger('segmentation_id')->nullable();
     });
 
@@ -70,9 +75,12 @@ beforeEach(function (): void {
         $table->increments('id');
         $table->string('code')->nullable();
         $table->date('date')->nullable();
+        $table->date('etd')->nullable();
         $table->unsignedInteger('pic')->nullable();
         $table->unsignedInteger('customer_id')->nullable();
         $table->unsignedBigInteger('segmentation_id')->nullable();
+        $table->decimal('shipping_rate', 10, 2)->nullable();
+        $table->text('note')->nullable();
         $table->softDeletes();
     });
 
@@ -226,6 +234,21 @@ it('lists inquiries by the inquiry segmentation instead of the customer segmenta
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $visibleInquiryId);
+});
+
+it('finds inquiries when the PIC has no employee position', function (): void {
+    $employee = createInquiryPrintEmployee('PIC', 'WithoutPosition');
+    $inquiryId = DB::table('sales.inquiries')->insertGetId([
+        'code' => 'INQ-WITHOUT-POSITION',
+        'date' => now()->toDateString(),
+        'pic' => $employee->id,
+    ]);
+
+    $inquiry = app(InquiryPrintService::class)->getInquiry($inquiryId);
+
+    expect($inquiry)
+        ->not->toBeNull()
+        ->and($inquiry->pic_name)->toBe('PIC WithoutPosition');
 });
 
 it('uses only the saved signature position instead of the employee position', function (): void {

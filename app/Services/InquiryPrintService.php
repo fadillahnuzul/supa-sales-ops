@@ -21,13 +21,6 @@ class InquiryPrintService
                 '=',
                 'i.segmentation_id'
             )
-            ->join(
-                'core.employee_positions as ep',
-                'ep.employee_id',
-                '=',
-                'i.pic'
-            )
-
             ->leftJoin(
                 'core.employees as e',
                 'e.id',
