@@ -99,8 +99,12 @@ it('allows employees with an assigned role to log in', function (int $roleId) {
 })->with([1, 2, 3]);
 
 it('redirects expired Inertia requests to login with a session-expired notice', function () {
+    $employee = createEmployeeForAccessTest(1);
+    Auth::guard('web')->login($employee);
     $request = Request::create('/logout', 'POST');
     $request->headers->set('X-Inertia', 'true');
+    $request->setLaravelSession(app('session')->driver());
+    $request->session()->start();
 
     $response = app(ExceptionHandler::class)->render(
         $request,
@@ -109,6 +113,7 @@ it('redirects expired Inertia requests to login with a session-expired notice', 
 
     expect($response->getStatusCode())->toBe(302)
         ->and($response->headers->get('Location'))->toBe(url('/login?session_expired=1'));
+    $this->assertGuest('web');
 });
 
 it('keeps expired API requests as JSON 419 responses', function () {

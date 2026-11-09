@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -40,6 +41,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 && ! $request->is('api/*')
                 && ($request->header('X-Inertia') || ! $request->expectsJson())
             ) {
+                Auth::guard('web')->logout();
+
+                if ($request->hasSession()) {
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
+
                 return redirect('/login?session_expired=1');
             }
 
