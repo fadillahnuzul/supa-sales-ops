@@ -112,7 +112,7 @@ it('logs out authenticated employees and redirects without an expired-session no
 it('redirects expired Inertia requests to login with a session-expired notice', function () {
     $employee = createEmployeeForAccessTest(1);
     Auth::guard('web')->login($employee);
-    $request = Request::create('/logout', 'POST');
+    $request = Request::create('/dashboard', 'POST');
     $request->headers->set('X-Inertia', 'true');
     $request->setLaravelSession(app('session')->driver());
     $request->session()->start();
@@ -125,6 +125,21 @@ it('redirects expired Inertia requests to login with a session-expired notice', 
     expect($response->getStatusCode())->toBe(302)
         ->and($response->headers->get('Location'))->toBe(url('/login?session_expired=1'));
     $this->assertGuest('web');
+});
+
+it('returns expired login submissions to a clean login page', function () {
+    $request = Request::create('/login', 'POST');
+    $request->headers->set('X-Inertia', 'true');
+    $request->setLaravelSession(app('session')->driver());
+    $request->session()->start();
+
+    $response = app(ExceptionHandler::class)->render(
+        $request,
+        new TokenMismatchException
+    );
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and($response->headers->get('Location'))->toBe(url('/login'));
 });
 
 it('keeps expired API requests as JSON 419 responses', function () {

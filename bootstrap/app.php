@@ -49,7 +49,11 @@ return Application::configure(basePath: dirname(__DIR__))
                     $request->session()->regenerateToken();
                 }
 
-                return redirect('/login?session_expired=1');
+                return redirect(
+                    $request->is('login')
+                        ? '/login'
+                        : '/login?session_expired=1'
+                );
             }
 
             return $response;
