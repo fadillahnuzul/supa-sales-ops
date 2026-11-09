@@ -272,7 +272,10 @@ export async function downloadInquiryExcel(
 
     downloadBlob(
         response.data,
-        `INQUIRY_FORM_${id}.xlsx`
+        getDownloadFilename(
+            response.headers['content-disposition'],
+            `INQUIRY_FORM_${id}.xlsx`
+        )
     );
 }
 

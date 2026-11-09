@@ -300,18 +300,9 @@ class InquiryPrintController extends Controller
         $inquiry = $data['inquiry'];
         $details = $data['details'];
 
-        $templateRelativePath =
-            'inquiry-templates/excel/inquiry_form.xlsx';
-
-        $templatePath = Storage::disk('local')->path(
-            $templateRelativePath
+        $templatePath = resource_path(
+            'template/excel/inquiry_form.xlsx'
         );
-
-        if (! file_exists($templatePath)) {
-            $templatePath = storage_path(
-                'app/'.$templateRelativePath
-            );
-        }
 
         if (! file_exists($templatePath)) {
             abort(
@@ -446,11 +437,7 @@ class InquiryPrintController extends Controller
 
         $fileName =
             'INQUIRY_FORM_'.
-            preg_replace(
-                '/[^A-Za-z0-9_-]/',
-                '_',
-                $inquiry->code
-            ).
+            $inquiry->code.
             '.xlsx';
 
         $tempPath = storage_path(
