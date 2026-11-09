@@ -98,6 +98,17 @@ it('allows employees with an assigned role to log in', function (int $roleId) {
     $this->assertAuthenticatedAs($employee);
 })->with([1, 2, 3]);
 
+it('logs out authenticated employees and redirects without an expired-session notice', function () {
+    $employee = createEmployeeForAccessTest(1);
+
+    $this->withSession([
+        'employee_password_hash' => hash('sha256', $employee->password),
+    ])->actingAs($employee)->post('/logout')
+        ->assertRedirect('/login');
+
+    $this->assertGuest('web');
+});
+
 it('redirects expired Inertia requests to login with a session-expired notice', function () {
     $employee = createEmployeeForAccessTest(1);
     Auth::guard('web')->login($employee);
