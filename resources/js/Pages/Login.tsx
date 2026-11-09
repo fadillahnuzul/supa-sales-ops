@@ -28,7 +28,7 @@ export default function Login() {
                     <p className="mt-3 text-sm leading-relaxed text-gray-500">Masuk dengan akun perusahaan untuk melanjutkan.</p>
                     {sessionExpired && (
                         <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                            Sesi Anda telah berakhir. Silakan masuk kembali, lalu ulangi unggahan.
+                            Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan.
                         </p>
                     )}
                     <form onSubmit={submit} className="mt-9 space-y-5">

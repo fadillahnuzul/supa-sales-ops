@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,4 +29,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn(Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->respond(function (
+            Response $response,
+            Throwable $exception,
+            Request $request
+        ): Response {
+            if (
+                $response->getStatusCode() === 419
+                && ! $request->is('api/*')
+                && ($request->header('X-Inertia') || ! $request->expectsJson())
+            ) {
+                return redirect('/login?session_expired=1');
+            }
+
+            return $response;
+        });
     })->create();

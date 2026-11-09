@@ -3,7 +3,10 @@
 use App\Http\Controllers\RoleManagementController;
 use App\Models\Core\EmployeeModel;
 use App\Models\Sales\UserRoleModel;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -94,6 +97,31 @@ it('allows employees with an assigned role to log in', function (int $roleId) {
 
     $this->assertAuthenticatedAs($employee);
 })->with([1, 2, 3]);
+
+it('redirects expired Inertia requests to login with a session-expired notice', function () {
+    $request = Request::create('/logout', 'POST');
+    $request->headers->set('X-Inertia', 'true');
+
+    $response = app(ExceptionHandler::class)->render(
+        $request,
+        new TokenMismatchException
+    );
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and($response->headers->get('Location'))->toBe(url('/login?session_expired=1'));
+});
+
+it('keeps expired API requests as JSON 419 responses', function () {
+    $request = Request::create('/api/example', 'POST');
+
+    $response = app(ExceptionHandler::class)->render(
+        $request,
+        new TokenMismatchException
+    );
+
+    expect($response->getStatusCode())->toBe(419)
+        ->and($response->headers->get('Content-Type'))->toContain('application/json');
+});
 
 it('explains that an employee without an assigned role has no access', function () {
     createEmployeeForAccessTest();
