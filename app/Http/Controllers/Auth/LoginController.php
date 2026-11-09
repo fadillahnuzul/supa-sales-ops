@@ -9,12 +9,18 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class LoginController extends Controller
 {
-    public function create()
+    public function create(Request $request): Response
     {
-        return Inertia::render('Login');
+        $response = Inertia::render('Login')->toResponse($request);
+        $response->headers->set('Cache-Control', 'private, no-store, no-cache, max-age=0, must-revalidate');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('Expires', '0');
+
+        return $response;
     }
 
     public function store(Request $request)

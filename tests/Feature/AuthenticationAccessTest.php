@@ -98,6 +98,19 @@ it('allows employees with an assigned role to log in', function (int $roleId) {
     $this->assertAuthenticatedAs($employee);
 })->with([1, 2, 3]);
 
+it('does not cache the login page response', function () {
+    $response = $this->get('/login')
+        ->assertInertia(fn (Assert $page) => $page->component('Login'));
+
+    expect($response->headers->get('Cache-Control'))
+        ->toContain('no-store')
+        ->toContain('no-cache');
+
+    $response
+        ->assertHeader('Pragma', 'no-cache')
+        ->assertHeader('Expires', '0');
+});
+
 it('logs out authenticated employees and redirects without an expired-session notice', function () {
     $employee = createEmployeeForAccessTest(1);
 

@@ -18,11 +18,15 @@ router.on('httpException', (event) => {
     event.preventDefault();
 
     const isLoginPage = window.location.pathname.replace(/\/$/, '') === '/login';
-    const destination = isLoginPage
-        ? '/login'
-        : '/login?session_expired=1';
+    const search = new URLSearchParams();
 
-    window.location.assign(destination);
+    if (!isLoginPage) {
+        search.set('session_expired', '1');
+    }
+
+    search.set('_', String(Date.now()));
+
+    window.location.replace(`/login?${search.toString()}`);
 });
 
 createInertiaApp({
