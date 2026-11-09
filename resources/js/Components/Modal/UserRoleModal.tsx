@@ -19,7 +19,7 @@ interface UserOption {
   employee_id: number;
   name: string;
   username: string | null;
-  role_id: number | null;
+  role_ids: number[];
   segmentation_ids: number[];
 }
 
@@ -41,7 +41,7 @@ export default function UserRoleModal({
   segmentation,
 }: Props) {
   const [employeeId, setEmployeeId] = useState('');
-  const [roleId, setRoleId] = useState('');
+  const [roleIds, setRoleIds] = useState<number[]>([]);
   const [segmentationIds, setSegmentationIds] = useState<number[]>([]);
   const [processing, setProcessing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -52,10 +52,18 @@ export default function UserRoleModal({
     if (!open) return;
 
     setEmployeeId(user?.employee_id?.toString() ?? '');
-    setRoleId(user?.role_id?.toString() ?? '');
+    setRoleIds(user?.role_ids ?? []);
     setSegmentationIds(user?.segmentation_ids ?? []);
     setErrors({});
   }, [open, user]);
+
+  function toggleRole(id: number) {
+    setRoleIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    );
+  }
 
   function toggleSegmentation(id: number) {
     setSegmentationIds((current) =>
@@ -70,7 +78,7 @@ export default function UserRoleModal({
 
     const payload = {
       employee_id: Number(employeeId),
-      role_id: Number(roleId),
+      role_ids: roleIds,
       segmentation_ids: segmentationIds,
     };
 
@@ -174,22 +182,31 @@ export default function UserRoleModal({
               Role <span className="text-red-500">*</span>
             </label>
 
-            <select
-              value={roleId}
-              onChange={(e) => setRoleId(e.target.value)}
-              className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#19875f]"
-            >
-              <option value="">Pilih Role</option>
+            <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3">
               {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
+                <label
+                  key={role.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={roleIds.includes(role.id)}
+                    onChange={() => toggleRole(role.id)}
+                    className="h-4 w-4 accent-[#19875f]"
+                  />
+                  <span className="text-sm text-gray-700">{role.name}</span>
+                </label>
               ))}
-            </select>
+              {roles.length === 0 && (
+                <p className="py-3 text-center text-sm text-gray-400">
+                  Belum ada role.
+                </p>
+              )}
+            </div>
 
-            {errors.role_id && (
+            {(errors.role_ids || errors['role_ids.0']) && (
               <p className="mt-1 text-xs text-red-600">
-                {errors.role_id}
+                {errors.role_ids || errors['role_ids.0']}
               </p>
             )}
           </div>
@@ -252,7 +269,7 @@ export default function UserRoleModal({
           <button
             type="button"
             onClick={handleSave}
-            disabled={processing || !employeeId || !roleId}
+            disabled={processing || !employeeId || roleIds.length === 0}
             className="inline-flex items-center gap-2 rounded-lg bg-[#19875f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#146e4e] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save size={16} />

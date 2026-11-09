@@ -36,7 +36,8 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $employee = $request->user();
-        $roleId = $employee?->role?->role_id;
+        $roleIds = $employee?->roleIds() ?? [];
+        $roleId = $roleIds[0] ?? null;
 
         $permissions = $employee?->is_active
         ? [
@@ -63,20 +64,21 @@ class HandleInertiaRequests extends Middleware
                         'username' => $employee->username,
                         'email' => $employee->email,
                         'role_id' => $roleId !== null ? (int) $roleId : null,
+                        'role_ids' => $roleIds,
                         'photo' => $employee->profile_photo_path
                             ? asset(
                                 'storage/'.$employee->profile_photo_path
                             )
                             : null,
                         'segmentation_names' => $request->user()
-                        ->segmentation()
-                        ->with('segmentation')
-                        ->get()
-                        ->pluck('segmentation.name')
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->all(),
+                            ->segmentation()
+                            ->with('segmentation')
+                            ->get()
+                            ->pluck('segmentation.name')
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all(),
                     ]
                     : null,
 

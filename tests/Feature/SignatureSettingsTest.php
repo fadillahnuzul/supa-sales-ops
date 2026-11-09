@@ -43,8 +43,10 @@ beforeEach(function (): void {
     });
 
     Schema::create('sales.user_role', function (Blueprint $table): void {
-        $table->unsignedInteger('employee_id')->primary();
+        $table->increments('id');
+        $table->unsignedInteger('employee_id');
         $table->unsignedInteger('role_id');
+        $table->unique(['employee_id', 'role_id']);
     });
 
     Schema::create('sales.sales_signatures', function (Blueprint $table): void {

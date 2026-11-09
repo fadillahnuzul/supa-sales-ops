@@ -39,9 +39,23 @@ beforeEach(function () {
     });
 
     Schema::create('sales.user_role', function (Blueprint $table): void {
-        $table->unsignedInteger('employee_id')->primary();
+        $table->increments('id');
+        $table->unsignedInteger('employee_id');
         $table->unsignedInteger('role_id');
+        $table->unique(['employee_id', 'role_id']);
     });
+
+    Schema::create('sales.roles', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('name');
+    });
+    DB::table('sales.roles')->insert([
+        ['id' => 1, 'name' => 'Administrator'],
+        ['id' => 2, 'name' => 'Sales'],
+        ['id' => 3, 'name' => 'Sales Coordinator'],
+        ['id' => 4, 'name' => 'Sales Manager'],
+        ['id' => 5, 'name' => 'Approver'],
+    ]);
 
     Schema::create('sales.inquiries', function (Blueprint $table): void {
         $table->increments('id');
@@ -108,6 +122,7 @@ afterEach(function () {
     Schema::dropIfExists('sales.job_orders');
     Schema::dropIfExists('sales.inquiries');
     Schema::dropIfExists('sales.user_role');
+    Schema::dropIfExists('sales.roles');
     Schema::dropIfExists('core.customers');
     Schema::dropIfExists('core.employee_segmentations');
     Schema::dropIfExists('core.employees');
@@ -127,7 +142,7 @@ it('lists unconverted inquiries alongside job orders assigned to the employee', 
 
     UserRoleModel::create([
         'employee_id' => $employee->id,
-        'role_id' => 5,
+        'role_id' => 2,
     ]);
 
     $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
@@ -238,6 +253,123 @@ it('lists inquiries by their inquiry segmentation even when their customer has a
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.inquiry_id', $inquiryId);
+});
+
+it('allows a Sales Coordinator to open any listed job order', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-COORDINATOR-DETAIL',
+        'first_name' => 'Sales',
+        'last_name' => 'Coordinator',
+        'username' => 'job.order.coordinator.detail',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 3,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $this->get(route('job-orders.page'))
+        ->assertInertia(fn ($page) => $page
+            ->component('JobOrderCenter')
+            ->where('roleIds', [3]));
+
+    $inquiryId = DB::table('sales.inquiries')->insertGetId([
+        'code' => 'INQ-COORDINATOR-DETAIL',
+        'date' => now()->toDateString(),
+        'pic' => $employee->id + 1,
+        'segmentation_id' => 20,
+    ]);
+    $jobOrderId = DB::table('sales.job_orders')->insertGetId([
+        'inquiry_id' => $inquiryId,
+        'date' => now()->toDateString(),
+        'so_no' => 'SO-COORDINATOR-DETAIL',
+        'po_no' => 'PO-COORDINATOR-DETAIL',
+        'customer_name' => 'Customer JO',
+        'status' => 'pending',
+        'created_by' => $employee->id,
+    ]);
+
+    $this->getJson('/job-orders/'.$jobOrderId)
+        ->assertOk()
+        ->assertJsonPath('id', $jobOrderId)
+        ->assertJsonPath('so_no', 'SO-COORDINATOR-DETAIL');
+});
+
+it('limits users with only the Sales role to their PIC or assigned inquiry segmentation', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-SALES-SCOPE',
+        'first_name' => 'Sales',
+        'last_name' => 'Scope',
+        'username' => 'job.order.sales.scope',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 2,
+    ]);
+    DB::table('core.employee_segmentations')->insert([
+        'employee_id' => $employee->id,
+        'segmentation_id' => 10,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $date = now()->toDateString();
+    $inquiries = [
+        [
+            'code' => 'INQ-SALES-OWN-PIC',
+            'date' => $date,
+            'pic' => $employee->id,
+            'segmentation_id' => 20,
+        ],
+        [
+            'code' => 'INQ-SALES-SEGMENT',
+            'date' => $date,
+            'pic' => $employee->id + 1,
+            'segmentation_id' => 10,
+        ],
+        [
+            'code' => 'INQ-SALES-HIDDEN',
+            'date' => $date,
+            'pic' => $employee->id + 1,
+            'segmentation_id' => 20,
+        ],
+    ];
+    $jobOrderIds = [];
+    foreach ($inquiries as $index => $inquiry) {
+        $inquiryId = DB::table('sales.inquiries')->insertGetId($inquiry);
+        $jobOrderIds[] = DB::table('sales.job_orders')->insertGetId([
+            'inquiry_id' => $inquiryId,
+            'date' => $date,
+            'so_no' => 'SO-SALES-SCOPE-'.$index,
+            'po_no' => 'PO-SALES-SCOPE-'.$index,
+            'customer_name' => 'Customer '.$index,
+            'status' => 'pending',
+            'created_by' => $employee->id,
+        ]);
+    }
+
+    $this->getJson(route('job-orders.list', [
+        'start_date' => $date,
+        'end_date' => $date,
+    ]))
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonFragment(['job_order_id' => $jobOrderIds[0]])
+        ->assertJsonFragment(['job_order_id' => $jobOrderIds[1]])
+        ->assertJsonMissing(['job_order_id' => $jobOrderIds[2]]);
+
+    $this->getJson('/job-orders/'.$jobOrderIds[0])->assertOk();
+    $this->getJson('/job-orders/'.$jobOrderIds[1])->assertOk();
+    $this->getJson('/job-orders/'.$jobOrderIds[2])->assertNotFound();
 });
 
 it('creates a job order from an inquiry without a database connection error', function () {
@@ -423,4 +555,48 @@ it('prints the creator, checker, and approver names with signature spaces', func
         ->assertSee(route('signature-settings.file', $signatureIds[2]), false);
 
     $this->get(route('signature-settings.file', $signatureIds[1]))->assertOk();
+});
+
+it('allows Sales to print accessible job orders directly in A4 portrait', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-SALES-PRINT',
+        'first_name' => 'Sales',
+        'last_name' => 'Printer',
+        'username' => 'job.order.sales.print',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 2,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $this->get(route('job-orders.page'))
+        ->assertInertia(fn ($page) => $page
+            ->component('JobOrderCenter')
+            ->where('roleIds', [2]));
+
+    $inquiryId = DB::table('sales.inquiries')->insertGetId([
+        'code' => 'INQ-SALES-PRINT',
+        'date' => now()->toDateString(),
+        'pic' => $employee->id,
+    ]);
+    $jobOrderId = DB::table('sales.job_orders')->insertGetId([
+        'inquiry_id' => $inquiryId,
+        'date' => now()->toDateString(),
+        'so_no' => 'SO-SALES-PRINT',
+        'po_no' => 'PO-SALES-PRINT',
+        'customer_name' => 'Customer JO',
+        'status' => 'pending',
+        'created_by' => $employee->id,
+    ]);
+
+    $this->get('/job-orders/'.$jobOrderId.'/print')
+        ->assertOk()
+        ->assertSee('size: A4 portrait;')
+        ->assertSee('window.print()', false);
 });

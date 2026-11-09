@@ -3,13 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Core\EmployeeModel;
-use App\Models\Core\EmployeeSegmentationModel;
 use App\Models\Core\SegmentationModel;
 use App\Models\Sales\RoleModel;
-use App\Models\Sales\UserRoleModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class RoleManagementController extends Controller
@@ -20,25 +19,65 @@ class RoleManagementController extends Controller
         $employeeList = EmployeeModel::orderBy('first_name')->get();
         $roles = RoleModel::orderBy('name')->get();
 
-        $users = UserRoleModel::get()->map(function ($user) {
-            $employee = EmployeeModel::with('segmentation','segmentation.segmentation', 'role')->find($user->employee_id);
+        $assignments = DB::table('sales.user_role as ur')
+            ->join('core.employees as e', 'e.id', '=', 'ur.employee_id')
+            ->leftJoin('sales.roles as r', 'r.id', '=', 'ur.role_id')
+            ->select([
+                'ur.employee_id',
+                'ur.role_id',
+                'r.name as role_name',
+                'e.first_name',
+                'e.last_name',
+                'e.username',
+            ])
+            ->orderBy('e.id')
+            ->orderBy('r.name')
+            ->get();
 
-            return [
-                'id' => $user->id,
-                'employee_id' => (int) $user->employee_id,
-                'name' => trim(
-                    ($employee?->first_name ?? '') . ' ' .
-                        ($employee?->last_name ?? '')
-                ),
-                'username' => $employee?->username,
-                'role_id' => $user->role_id
-                    ? (int) $user->role_id
-                    : null,
-                'role_name' => $employee->role->role->name,
-                'segmentation_ids' => ($employee->segmentation) ? $employee->segmentation->pluck('segmentation_id') : [],
-                'segmentation_names' => ($employee->segmentation) ? $employee->segmentation->pluck('segmentation.name') : [],
-            ];
-        });
+        $employees = EmployeeModel::query()
+            ->with(['segmentation', 'segmentation.segmentation'])
+            ->whereIn('id', $assignments->pluck('employee_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $users = $assignments
+            ->groupBy('employee_id')
+            ->map(function ($employeeAssignments, $employeeId) use ($employees): array {
+                $employee = $employees->get((int) $employeeId);
+                $roleNames = $employeeAssignments
+                    ->pluck('role_name')
+                    ->filter()
+                    ->values()
+                    ->all();
+                $segmentationIds = $employee?->segmentation
+                    ->pluck('segmentation_id')
+                    ->map(fn ($id): int => (int) $id)
+                    ->values()
+                    ->all() ?? [];
+                $segmentationNames = $employee?->segmentation
+                    ->pluck('segmentation.name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all() ?? [];
+
+                return [
+                    'id' => (int) $employeeId,
+                    'employee_id' => (int) $employeeId,
+                    'name' => trim(($employee?->first_name ?? '').' '.($employee?->last_name ?? '')),
+                    'username' => $employee?->username,
+                    'role_ids' => $employeeAssignments
+                        ->pluck('role_id')
+                        ->map(fn ($roleId): int => (int) $roleId)
+                        ->values()
+                        ->all(),
+                    'role_names' => $roleNames,
+                    'role_name' => implode(', ', $roleNames),
+                    'segmentation_ids' => $segmentationIds,
+                    'segmentation_names' => $segmentationNames,
+                ];
+            })
+            ->values();
 
         return Inertia::render('InquiryRoleManagement', [
             'employeeList' => $employeeList,
@@ -52,16 +91,19 @@ class RoleManagementController extends Controller
     {
         $data = $this->validateData($request);
 
-        DB::transaction(function () use ($data) {
+        if (DB::table('sales.user_role')
+            ->where('employee_id', $data['employee_id'])
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'employee_id' => 'Employee sudah memiliki user access.',
+            ]);
+        }
 
-            $userRole = new UserRoleModel();
-            $userRole->employee_id = $data['employee_id'];
-            $userRole->role_id = $data['role_id'];
-            $userRole->save();
-
+        DB::transaction(function () use ($data): void {
+            $this->syncRoles($data['employee_id'], $data['role_ids']);
             $this->syncSegmentation(
                 $data['employee_id'],
-                $data['segmentation_ids'] ?? []
+                $data['segmentation_ids']
             );
         });
 
@@ -70,62 +112,39 @@ class RoleManagementController extends Controller
             ->with('success', 'User access berhasil ditambahkan.');
     }
 
-    public function edit($id)
+    public function edit(int $id)
     {
-        $user = UserRoleModel::findOrFail($id);
-
-        $employee = EmployeeModel::find($user->employee_id);
-
-        $segmentationIds = EmployeeSegmentationModel::where(
-            'employee_id',
-            $user->employee_id
-        )->pluck('segmentation_id')->map(
-            fn($id) => (int) $id
-        )->values()->all();
+        $employee = EmployeeModel::with('segmentation')->findOrFail($id);
 
         return response()->json([
-            'id' => $user->id,
-            'employee_id' => (int) $user->employee_id,
-            'name' => trim(
-                ($employee?->first_name ?? '') . ' ' .
-                    ($employee?->last_name ?? '')
-            ),
-            'username' => $employee?->username,
-            'role_id' => $user->role_id
-                ? (int) $user->role_id
-                : null,
-            'segmentation_ids' => $segmentationIds,
+            'id' => $employee->id,
+            'employee_id' => (int) $employee->id,
+            'name' => $employee->full_name,
+            'username' => $employee->username,
+            'role_ids' => $employee->roleIds(),
+            'segmentation_ids' => $employee->segmentation
+                ->pluck('segmentation_id')
+                ->map(fn ($segmentationId): int => (int) $segmentationId)
+                ->values()
+                ->all(),
         ]);
     }
 
-    /**
-     * UPDATE - Perbarui user access
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id)
     {
         $data = $this->validateData($request);
-        $userRole = UserRoleModel::updateOrCreate(
-            ['employee_id' => $id],
-            ['role_id' => $data['role_id']]
-        );
 
-        DB::transaction(function () use ($data, $userRole) {
+        if ((int) $data['employee_id'] !== $id) {
+            throw ValidationException::withMessages([
+                'employee_id' => 'Employee tidak dapat diganti.',
+            ]);
+        }
 
-            $oldEmployeeId = $userRole->employee_id;
-            // $userRole->employee_id = $data['employee_id'];
-            // $userRole->role_id = $data['role_id'];
-            // $userRole->save();
-
-            if ((int) $oldEmployeeId !== (int) $data['employee_id']) {
-                EmployeeSegmentationModel::where(
-                    'employee_id',
-                    $oldEmployeeId
-                )->delete();
-            }
-
+        DB::transaction(function () use ($data, $id): void {
+            $this->syncRoles($id, $data['role_ids']);
             $this->syncSegmentation(
-                $data['employee_id'],
-                $data['segmentation_ids'] ?? []
+                $id,
+                $data['segmentation_ids']
             );
         });
 
@@ -135,34 +154,29 @@ class RoleManagementController extends Controller
     }
 
     /**
-     * VALIDATION
+     * @return array{
+     *     employee_id: int,
+     *     role_ids: list<int>,
+     *     segmentation_ids: list<int>
+     * }
      */
-    private function validateData(Request $request, $ignoreId = null)
+    private function validateData(Request $request): array
     {
-        $userRoleTable = (new UserRoleModel())->getTable();
-        $employeeTable = (new EmployeeModel())->getTable();
-        $roleTable = (new RoleModel())->getTable();
-        $segmentationTable = (new SegmentationModel())->getTable();
-
-        $uniqueEmployee = Rule::unique(
-            UserRoleModel::class,
-            'employee_id'
-        );
-
-        if ($ignoreId !== null) {
-            $uniqueEmployee->ignore($ignoreId);
-        }
-
-        return $request->validate([
+        $data = $request->validate([
             'employee_id' => [
                 'required',
                 'integer',
                 Rule::exists(EmployeeModel::class, 'id'),
-                // $uniqueEmployee,
             ],
-            'role_id' => [
+            'role_ids' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+            'role_ids.*' => [
                 'required',
                 'integer',
+                'distinct',
                 Rule::exists(RoleModel::class, 'id'),
             ],
             'segmentation_ids' => [
@@ -173,30 +187,56 @@ class RoleManagementController extends Controller
                 'integer',
                 'distinct',
                 Rule::exists(SegmentationModel::class, 'id'),
-            ], 
+            ],
         ], [
             'employee_id.required' => 'Employee wajib dipilih.',
-            // 'employee_id.unique' => 'Employee sudah memiliki user access.',
-            'role_id.required' => 'Role wajib dipilih.',
+            'role_ids.required' => 'Pilih minimal satu role.',
+            'role_ids.min' => 'Pilih minimal satu role.',
+            'role_ids.*.exists' => 'Role tidak valid.',
             'segmentation_ids.*.exists' => 'Segmentation tidak valid.',
         ]);
+
+        return [
+            'employee_id' => (int) $data['employee_id'],
+            'role_ids' => array_map('intval', $data['role_ids']),
+            'segmentation_ids' => array_map('intval', $data['segmentation_ids']),
+        ];
     }
 
-    private function syncSegmentation(
-        int $employeeId,
-        array $segmentationIds
-    ) {
-        EmployeeSegmentationModel::where(
-            'employee_id',
-            $employeeId
-        )->delete();
+    /**
+     * @param  list<int>  $roleIds
+     */
+    private function syncRoles(int $employeeId, array $roleIds): void
+    {
+        DB::table('sales.user_role')
+            ->where('employee_id', $employeeId)
+            ->delete();
 
-        // Simpan pilihan segmentation terbaru.
+        DB::table('sales.user_role')->insert(
+            array_map(
+                fn (int $roleId): array => [
+                    'employee_id' => $employeeId,
+                    'role_id' => $roleId,
+                ],
+                $roleIds
+            )
+        );
+    }
+
+    /**
+     * @param  list<int>  $segmentationIds
+     */
+    private function syncSegmentation(int $employeeId, array $segmentationIds): void
+    {
+        DB::table('core.employee_segmentations')
+            ->where('employee_id', $employeeId)
+            ->delete();
+
         foreach ($segmentationIds as $segmentationId) {
-            $employeeSegmentation = new EmployeeSegmentationModel();
-            $employeeSegmentation->employee_id = $employeeId;
-            $employeeSegmentation->segmentation_id = $segmentationId;
-            $employeeSegmentation->save();
+            DB::table('core.employee_segmentations')->insert([
+                'employee_id' => $employeeId,
+                'segmentation_id' => $segmentationId,
+            ]);
         }
     }
 }

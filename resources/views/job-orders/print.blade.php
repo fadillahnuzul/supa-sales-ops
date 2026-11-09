@@ -5,7 +5,7 @@
     <title>JO {{ $jo->so_no }}</title>
     <style>
         @page {
-            size: A4 landscape;
+            size: A4 portrait;
             margin: 12mm;
         }
 
@@ -140,6 +140,9 @@
     <div class="toolbar">
         <button onclick="window.print()">Cetak / Simpan PDF</button>
     </div>
+    <script>
+        window.addEventListener('load', () => window.print(), { once: true });
+    </script>
     <header>
         <div class="company">SUPA &nbsp; PT. SUPA SURYA NIAGA</div>
         <div>

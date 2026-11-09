@@ -98,12 +98,32 @@ return new class extends Migration
                   AND t.relname = 'competitor_products'
                   AND n.nspname = 'sales'
             ) THEN
-                ALTER TABLE sales.competitor_products
-                ADD CONSTRAINT competitor_products_product_id_foreign
-                FOREIGN KEY (product_id)
-                REFERENCES core.products(id)
-                ON UPDATE CASCADE
-                ON DELETE RESTRICT;
+                IF EXISTS (
+                    SELECT 1
+                    FROM sales.competitor_products AS competitor_product
+                    LEFT JOIN core.products AS product
+                        ON product.id = competitor_product.product_id
+                    WHERE competitor_product.product_id IS NOT NULL
+                      AND product.id IS NULL
+                ) THEN
+                    ALTER TABLE sales.competitor_products
+                    ADD CONSTRAINT competitor_products_product_id_foreign
+                    FOREIGN KEY (product_id)
+                    REFERENCES core.products(id)
+                    ON UPDATE CASCADE
+                    ON DELETE RESTRICT
+                    NOT VALID;
+
+                    RAISE WARNING
+                        'Added competitor_products_product_id_foreign as NOT VALID because competitor_products rows reference missing products. Reconcile those rows, then run ALTER TABLE sales.competitor_products VALIDATE CONSTRAINT competitor_products_product_id_foreign.';
+                ELSE
+                    ALTER TABLE sales.competitor_products
+                    ADD CONSTRAINT competitor_products_product_id_foreign
+                    FOREIGN KEY (product_id)
+                    REFERENCES core.products(id)
+                    ON UPDATE CASCADE
+                    ON DELETE RESTRICT;
+                END IF;
             END IF;
         END
         $$;

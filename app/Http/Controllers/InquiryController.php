@@ -45,8 +45,11 @@ class InquiryController extends Controller
                 '=',
                 'i.pic'
             )
-            ->whereNull('i.deleted_at')
-            ->whereIn('i.segmentation_id', $segmentationIds);
+            ->whereNull('i.deleted_at');
+
+        if (! auth()->user()->hasAnyRole([3])) {
+            $inquiries->whereIn('i.segmentation_id', $segmentationIds);
+        }
 
         $inquiries = $inquiries
             ->select([
@@ -303,7 +306,7 @@ class InquiryController extends Controller
                     */
                     'details' => $detailRows
                         ->map(
-                            fn($detail) => [
+                            fn ($detail) => [
                                 'id' => $detail->id,
 
                                 'productId' => $detail->product_id,
@@ -424,7 +427,7 @@ class InquiryController extends Controller
             ->orderBy('c.name')
             ->get()
             ->map(
-                fn($customer) => [
+                fn ($customer) => [
                     'id' => $customer->id,
                     'code' => $customer->code,
                     'name' => $customer->name,
@@ -434,14 +437,17 @@ class InquiryController extends Controller
             );
 
         $segmentations = SegmentationModel::query()
-            ->whereIn('id', $segmentationIds)
+            ->when(
+                ! auth()->user()->hasAnyRole([3]),
+                fn ($query) => $query->whereIn('id', $segmentationIds)
+            )
             ->orderBy('name')
             ->get(['id', 'name']);
 
         $pics = EmployeeModel::query()
-            ->with('position', 'position.position', 'role')
+            ->with('position', 'position.position', 'userRoles.role')
             ->where(function ($query) {
-                $query->whereHas('role', function ($query) {
+                $query->whereHas('userRoles', function ($query) {
                     $query->where('role_id', '>', 1);
                 })
                     ->orWhereHas('position.position', function ($query) {
@@ -466,7 +472,7 @@ class InquiryController extends Controller
             ->orderBy('name')
             ->get()
             ->map(
-                fn($product) => [
+                fn ($product) => [
                     'id' => $product->id,
 
                     'name' => $product->name,
@@ -565,7 +571,7 @@ class InquiryController extends Controller
             )
             ->get()
             ->map(
-                fn($price) => [
+                fn ($price) => [
                     'id' => $price->id,
 
                     'competitorId' => $price->competitor_id,
@@ -650,7 +656,7 @@ class InquiryController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists(SegmentationModel::class, 'id')
-                    ->where(fn($query) => $query->whereIn('id', $segmentationIds)),
+                    ->where(fn ($query) => $query->whereIn('id', $segmentationIds)),
             ],
 
             'shipping_rate' => [
@@ -706,9 +712,9 @@ class InquiryController extends Controller
 
         $existing =
             DB::table('sales.inquiries')
-            ->where('id', $inquiry)
-            ->whereNull('deleted_at')
-            ->first();
+                ->where('id', $inquiry)
+                ->whereNull('deleted_at')
+                ->first();
 
         abort_if(
             ! $existing,
@@ -759,7 +765,7 @@ class InquiryController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists(SegmentationModel::class, 'id')
-                    ->where(fn($query) => $query->whereIn('id', $segmentationIds)),
+                    ->where(fn ($query) => $query->whereIn('id', $segmentationIds)),
             ],
 
             'shipping_rate' => [

@@ -5,7 +5,6 @@ namespace App\Models\Core;
 use App\Models\Sales\InquiryModel;
 use App\Models\Sales\UserRoleModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
@@ -68,9 +67,29 @@ class EmployeeModel extends Authenticatable
         return $this->hasMany(EmployeeSegmentationModel::class, 'employee_id', 'id');
     }
 
-    public function role(): HasOne
+    public function userRoles(): HasMany
     {
-        return $this->hasOne(UserRoleModel::class, 'employee_id', 'id');
+        return $this->hasMany(UserRoleModel::class, 'employee_id', 'id');
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function roleIds(): array
+    {
+        return $this->userRoles()
+            ->orderBy('role_id')
+            ->pluck('role_id')
+            ->map(fn ($roleId): int => (int) $roleId)
+            ->all();
+    }
+
+    /**
+     * @param  list<int>  $roleIds
+     */
+    public function hasAnyRole(array $roleIds): bool
+    {
+        return array_intersect($roleIds, $this->roleIds()) !== [];
     }
 
     public function position(): HasMany
@@ -80,16 +99,12 @@ class EmployeeModel extends Authenticatable
 
     public function hasSystemAccess(): bool
     {
-        $roleId = $this->role?->role_id;
-
-        return $roleId !== null;
+        return $this->roleIds() !== [];
     }
 
     public function canManageRoleManagement(): bool
     {
-        $roleId = $this->role?->role_id;
-
-        return $roleId !== null && in_array((int) $roleId, [1, 3, 5], true);
+        return $this->hasAnyRole([1, 3, 5]);
     }
 
     public function getFullNameAttribute(): string

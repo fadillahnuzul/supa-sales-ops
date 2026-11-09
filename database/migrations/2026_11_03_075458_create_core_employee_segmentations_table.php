@@ -8,12 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('core.employee_segmentations', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('employee_id');
-            $table->unsignedBigInteger('segmentation_id');
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('core.employee_segmentations')) {
+            Schema::create('core.employee_segmentations', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('employee_id');
+                $table->unsignedBigInteger('segmentation_id');
+                $table->timestamps();
+            });
+        }
     }
 
     public function down(): void

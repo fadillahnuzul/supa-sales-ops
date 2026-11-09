@@ -8,6 +8,7 @@ export interface User {
     email?: string;
     role?: UserRole;
     role_id?: number | null;
+    role_ids?: number[];
     photo?: string;
     segmentation_ids: number[] | [];
     segmentation_names: string[] | [];

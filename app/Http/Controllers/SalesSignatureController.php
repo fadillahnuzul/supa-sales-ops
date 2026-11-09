@@ -73,12 +73,17 @@ class SalesSignatureController extends Controller
                 'max:2048',
             ],
         ]);
-        $employee->loadMissing('role.role');
+        $roleNames = DB::table('sales.user_role as ur')
+            ->join('sales.roles as r', 'r.id', '=', 'ur.role_id')
+            ->where('ur.employee_id', $employee->id)
+            ->orderBy('r.name')
+            ->pluck('r.name')
+            ->implode(', ');
 
         $path = $data['signature']->store('private/sales-signatures', 'local');
         abort_if($path === false, 500, 'Gagal menyimpan file tanda tangan.');
 
-        DB::transaction(function () use ($employee, $path): void {
+        DB::transaction(function () use ($employee, $path, $roleNames): void {
             SalesSignatureModel::query()
                 ->where('user_id', $employee->id)
                 ->where('is_active', true)
@@ -87,7 +92,7 @@ class SalesSignatureController extends Controller
             SalesSignatureModel::create([
                 'user_id' => $employee->id,
                 'name' => $employee->full_name,
-                'position' => $employee->role?->role?->name,
+                'position' => $roleNames !== '' ? $roleNames : null,
                 'signature_path' => $path,
                 'is_active' => true,
             ]);
@@ -108,15 +113,18 @@ class SalesSignatureController extends Controller
             ->groupBy('user_id');
 
         $employees = DB::table('core.employees as e')
-            ->leftJoin('sales.user_role as ur', 'ur.employee_id', '=', 'e.id')
-            ->leftJoin('sales.roles as r', 'r.id', '=', 'ur.role_id')
             ->leftJoinSub($latestSignatureIds, 'latest_signature', function ($join): void {
                 $join->on('latest_signature.user_id', '=', 'e.id');
             })
             ->leftJoin('sales.sales_signatures as signature', 'signature.id', '=', 'latest_signature.id')
             ->whereNull('e.deleted_at')
             ->where(function ($query): void {
-                $query->whereIn('ur.role_id', [2, 3, 4])
+                $query->whereExists(function ($roles): void {
+                    $roles->selectRaw('1')
+                        ->from('sales.user_role as ur')
+                        ->whereColumn('ur.employee_id', 'e.id')
+                        ->whereIn('ur.role_id', [2, 3, 4]);
+                })
                     ->orWhereExists(function ($inquiries): void {
                         $inquiries->selectRaw('1')
                             ->from('sales.inquiries as i')
@@ -129,16 +137,28 @@ class SalesSignatureController extends Controller
                 'e.id as user_id',
                 DB::raw("COALESCE(NULLIF(signature.name, ''), TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, ''))) as name"),
                 'signature.division',
-                DB::raw('COALESCE(signature.position, r.name) as position'),
+                'signature.position',
             ])
             ->orderBy('name')
-            ->get()
-            ->map(static fn (object $signature): array => [
+            ->get();
+
+        $roleNames = DB::table('sales.user_role as ur')
+            ->join('sales.roles as r', 'r.id', '=', 'ur.role_id')
+            ->whereIn('ur.employee_id', $employees->pluck('user_id'))
+            ->whereIn('ur.role_id', [2, 3, 4])
+            ->orderBy('r.name')
+            ->get(['ur.employee_id', 'r.name'])
+            ->groupBy('employee_id')
+            ->map(fn ($assignments): string => $assignments->pluck('name')->implode(', '));
+
+        $employees = $employees
+            ->map(fn (object $signature): array => [
                 'id' => $signature->id !== null ? (int) $signature->id : null,
                 'user_id' => (int) $signature->user_id,
                 'name' => $signature->name,
                 'division' => $signature->division,
-                'position' => $signature->position,
+                'position' => $signature->position
+                    ?? $roleNames->get($signature->user_id),
             ]);
 
         $unassignedSignatures = SalesSignatureModel::query()
@@ -326,7 +346,7 @@ class SalesSignatureController extends Controller
         $employee = $request->user();
 
         abort_unless(
-            $employee instanceof EmployeeModel && $employee->role()->exists(),
+            $employee instanceof EmployeeModel && $employee->userRoles()->exists(),
             403
         );
 

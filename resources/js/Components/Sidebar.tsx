@@ -102,11 +102,13 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         },
     ].filter((menu) => {
         if (menu.href === route('role-management')) {
-            return user?.role_id !== 2;
+            const roleIds = user?.role_ids ?? (user?.role_id ? [user.role_id] : []);
+            return roleIds.some((roleId) => [1, 3, 5].includes(roleId));
         }
 
         if (menu.href === route('signature-settings')) {
-            return user?.role_id != null;
+            const roleIds = user?.role_ids ?? (user?.role_id ? [user.role_id] : []);
+            return roleIds.length > 0;
         }
 
         return true;

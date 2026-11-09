@@ -182,6 +182,7 @@ interface TableProps {
     loading: boolean;
     openingId: number | null;
     canApprove: boolean;
+    canCheck: boolean;
     isApprover: boolean;
     isAdmin: boolean;
     marked: number[];
@@ -191,13 +192,14 @@ interface TableProps {
     total: number | null;
     onSelect: (row: JobOrderRow) => void;
     onMarkedChange: (ids: number[]) => void;
-    onAction: (ids: number[]) => void;
+    onCheck: (ids: number[]) => void;
+    onApprove: (ids: number[]) => void;
     onPageChange: (page: number) => void;
 }
 
 function JobOrderTable(props: TableProps) {
-    const { rows, selectedInquiryId, loading, openingId, canApprove, isApprover, isAdmin, marked, saving, currentPage, lastPage, total, onSelect, onMarkedChange, onAction, onPageChange } = props;
-    const pendingIds = rows.filter((r) => r.job_order_id != null && (isApprover ? ['pending', 'checked'].includes(r.status ?? '') : r.status === 'pending')).map((r) => Number(r.job_order_id));
+    const { rows, selectedInquiryId, loading, openingId, canApprove, canCheck, isApprover, isAdmin, marked, saving, currentPage, lastPage, total, onSelect, onMarkedChange, onCheck, onApprove, onPageChange } = props;
+    const pendingIds = rows.filter((r) => r.job_order_id != null && ((canCheck && r.status === 'pending') || (isApprover && r.status === 'checked'))).map((r) => Number(r.job_order_id));
     const allChecked = pendingIds.length > 0 && pendingIds.every((id) => marked.includes(id));
     const columnCount = canApprove ? 7 : 6;
     return (
@@ -208,7 +210,10 @@ function JobOrderTable(props: TableProps) {
                         <input type="checkbox" checked={allChecked} disabled={!pendingIds.length} onChange={(e) => onMarkedChange(e.target.checked ? Array.from(new Set([...marked, ...pendingIds])) : marked.filter((id) => !pendingIds.includes(id)))} />
                         Pilih semua pending pada halaman ini
                     </label>
-                    <button type="button" disabled={saving || !marked.length} onClick={() => onAction(marked)} className="rounded-lg bg-[#19875f] px-3 py-2 text-xs font-medium text-white hover:bg-[#146f4e] disabled:opacity-40">{isApprover ? 'Approve' : 'Check'} ({marked.length})</button>
+                    <div className="flex gap-2">
+                        {canCheck && <button type="button" disabled={saving || !marked.length} onClick={() => onCheck(marked)} className="rounded-lg bg-[#19875f] px-3 py-2 text-xs font-medium text-white hover:bg-[#146f4e] disabled:opacity-40">Check ({marked.length})</button>}
+                        {isApprover && <button type="button" disabled={saving || !marked.length} onClick={() => onApprove(marked)} className="rounded-lg bg-[#19875f] px-3 py-2 text-xs font-medium text-white hover:bg-[#146f4e] disabled:opacity-40">Approve ({marked.length})</button>}
+                    </div>
                 </div>
             )}
             <div className="overflow-x-auto">
@@ -223,7 +228,7 @@ function JobOrderTable(props: TableProps) {
                             const rowId = Number(row.job_order_id);
                             return (
                                 <tr key={row.inquiry_id} onClick={() => canOpen && onSelect(row)} className={`border-t border-gray-100 ${canOpen ? 'cursor-pointer hover:bg-emerald-50' : ''} ${selectedInquiryId === row.inquiry_id ? 'bg-emerald-50' : ''}`}>
-                                    {canApprove && <td className="p-3" onClick={(event) => event.stopPropagation()}><input aria-label={`Pilih JO ${row.so_no ?? row.inquiry_code}`} type="checkbox" disabled={!row.job_order_id || !(isApprover ? ['pending', 'checked'].includes(row.status ?? '') : row.status === 'pending')} checked={marked.includes(rowId)} onChange={(event) => onMarkedChange(event.target.checked ? Array.from(new Set([...marked, rowId])) : marked.filter((id) => id !== rowId))} /></td>}
+                                    {canApprove && <td className="p-3" onClick={(event) => event.stopPropagation()}><input aria-label={`Pilih JO ${row.so_no ?? row.inquiry_code}`} type="checkbox" disabled={!row.job_order_id || !((canCheck && row.status === 'pending') || (isApprover && row.status === 'checked'))} checked={marked.includes(rowId)} onChange={(event) => onMarkedChange(event.target.checked ? Array.from(new Set([...marked, rowId])) : marked.filter((id) => id !== rowId))} /></td>}
                                     <td className="p-3 font-medium text-gray-900">{row.so_no || '—'}</td>
                                     <td className="p-3">{row.po_no || '—'}</td>
                                     <td className="p-3 whitespace-nowrap">{String(row.inquiry_date ?? '').slice(0, 10)}</td>
@@ -253,12 +258,14 @@ function JobOrderTable(props: TableProps) {
 interface FormProps {
     order: JobOrder | null;
     isAdmin: boolean;
-    canApprove: boolean;
+    canPrint: boolean;
+    canCheck: boolean;
     isApprover: boolean;
     saving: boolean;
     onChange: (order: JobOrder) => void;
     onSave: () => void;
-    onAction: (ids: number[]) => void;
+    onCheck: (ids: number[]) => void;
+    onApprove: (ids: number[]) => void;
 }
 
 const fieldClass = 'mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#19875f] focus:ring-2 focus:ring-[#19875f]/10 disabled:bg-gray-50 disabled:text-gray-500';
@@ -274,7 +281,7 @@ const fields = [
 ] as const;
 const productFields = ['kg', 'product_code', 'product_name', 'packing', 'note'] as const;
 
-function JobOrderForm({ order, isAdmin, canApprove, isApprover, saving, onChange, onSave, onAction }: FormProps) {
+function JobOrderForm({ order, isAdmin, canPrint, canCheck, isApprover, saving, onChange, onSave, onCheck, onApprove }: FormProps) {
     if (!order) {
         return <div className="flex min-h-[320px] flex-col items-center justify-center p-10 text-center"><FileText size={38} className="mb-3 text-gray-300" /><p className="text-sm font-medium text-gray-700">Pilih Inquiry atau Job Order</p><p className="mt-1 text-sm text-gray-500">Detail akan tampil di sini.</p></div>;
     }
@@ -330,14 +337,19 @@ function JobOrderForm({ order, isAdmin, canApprove, isApprover, saving, onChange
                         <Save size={16} /> {saving ? 'Menyimpan...' : 'Update JO'}
                     </button>
                 )}
-                {isAdmin && Boolean(order.id) && (
+                {canPrint && Boolean(order.id) && (
                     <a href={jobOrderPrintUrl(order.id!)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <Printer size={16} /> Print JO
                     </a>
                 )}
-                {canApprove && Boolean(order.id) && (isApprover ? ['pending', 'checked'].includes(order.status ?? '') : order.status === 'pending') && (
-                    <button type="button" disabled={saving} onClick={() => onAction([order.id!])} className={primaryButton}>
-                        <CheckCircle2 size={16} /> {isApprover ? 'Approve JO' : 'Check JO'}
+                {canCheck && order.status === 'pending' && Boolean(order.id) && (
+                    <button type="button" disabled={saving} onClick={() => onCheck([order.id!])} className={primaryButton}>
+                        <CheckCircle2 size={16} /> Check JO
+                    </button>
+                )}
+                {isApprover && order.status === 'checked' && Boolean(order.id) && (
+                    <button type="button" disabled={saving} onClick={() => onApprove([order.id!])} className={primaryButton}>
+                        <CheckCircle2 size={16} /> Approve JO
                     </button>
                 )}
             </div>
@@ -347,13 +359,14 @@ function JobOrderForm({ order, isAdmin, canApprove, isApprover, saving, onChange
 
 
 // Pages/JobOrderCenter.tsx
-interface PageProps { roleId: number; }
+interface PageProps { roleIds: number[]; }
 
-export default function JobOrderCenter({ roleId }: PageProps) {
+export default function JobOrderCenter({ roleIds }: PageProps) {
     // Access must also be enforced by the Laravel controller.
-    const isAdmin = roleId === 4 || roleId === 1;
-    const isApprover = roleId === 5;
-    const canCheck = roleId === 2 || roleId === 3;
+    const isAdmin = roleIds.some((roleId) => [1, 4].includes(roleId));
+    const isApprover = roleIds.includes(5);
+    const canCheck = roleIds.some((roleId) => [2, 3].includes(roleId));
+    const canPrint = roleIds.some((roleId) => [1, 2, 4].includes(roleId));
     const canApprove = canCheck || isApprover;
 
     // FILTER
@@ -452,8 +465,6 @@ export default function JobOrderCenter({ roleId }: PageProps) {
         finally { setSaving(false); }
     }
 
-    const handleAction = isApprover ? handleApprove : handleCheck;
-
     return (
         <><Head title="Job Order" />
             <AuthenticatedLayout>
@@ -468,11 +479,11 @@ export default function JobOrderCenter({ roleId }: PageProps) {
                             <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm xl:col-span-5">
                                 <div className="flex items-center gap-2 border-b border-gray-100 p-4"><FileText size={18} className="text-[#19875f]" /><h2 className="font-semibold text-gray-900">{isAdmin ? 'Daftar Inquiry & JO' : 'Daftar Job Order'}</h2></div>
                                 <JobOrderFilter startDate={startDate} endDate={endDate} search={search} onStartDateChange={setStartDate} onEndDateChange={setEndDate} onSearchChange={setSearch} />
-                                <JobOrderTable rows={rows} selectedInquiryId={selected?.inquiry_id ?? null} loading={loading} openingId={openingId} isAdmin={isAdmin} canApprove={canApprove} isApprover={isApprover} marked={marked} saving={saving} currentPage={currentPage} lastPage={lastPage} total={total} onSelect={(row) => void handleSelect(row)} onMarkedChange={setMarked} onAction={(ids) => void handleAction(ids)} onPageChange={setPage} />
+                                <JobOrderTable rows={rows} selectedInquiryId={selected?.inquiry_id ?? null} loading={loading} openingId={openingId} isAdmin={isAdmin} canApprove={canApprove} canCheck={canCheck} isApprover={isApprover} marked={marked} saving={saving} currentPage={currentPage} lastPage={lastPage} total={total} onSelect={(row) => void handleSelect(row)} onMarkedChange={setMarked} onCheck={(ids) => void handleCheck(ids)} onApprove={(ids) => void handleApprove(ids)} onPageChange={setPage} />
                             </section>
                             <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm xl:col-span-7">
                                 <div className="border-b border-gray-100 p-4"><h2 className="font-semibold text-gray-900">{selected?.id ? `Detail JO • ${selected.so_no || selected.id}` : selected ? 'Buat Job Order dari Inquiry' : 'Detail Job Order'}</h2><p className="mt-1 text-xs text-gray-500"></p></div>
-                                <JobOrderForm order={selected} isAdmin={isAdmin} canApprove={canApprove} isApprover={isApprover} saving={saving} onChange={setSelected} onSave={() => void handleSave()} onAction={(ids) => void handleAction(ids)} />
+                                <JobOrderForm order={selected} isAdmin={isAdmin} canPrint={canPrint} canCheck={canCheck} isApprover={isApprover} saving={saving} onChange={setSelected} onSave={() => void handleSave()} onCheck={(ids) => void handleCheck(ids)} onApprove={(ids) => void handleApprove(ids)} />
                             </section>
                         </div>
                     </div>
@@ -481,4 +492,3 @@ export default function JobOrderCenter({ roleId }: PageProps) {
         </>
     );
 }
-

@@ -70,11 +70,30 @@ return new class extends Migration
                   AND t.relname = 'product_materials'
                   AND n.nspname = 'core'
             ) THEN
-                ALTER TABLE core.product_materials
-                ADD CONSTRAINT product_materials_product_id_foreign
-                FOREIGN KEY (product_id)
-                REFERENCES core.products(id)
-                ON DELETE CASCADE;
+                IF EXISTS (
+                    SELECT 1
+                    FROM core.product_materials AS product_material
+                    LEFT JOIN core.products AS product
+                        ON product.id = product_material.product_id
+                    WHERE product_material.product_id IS NOT NULL
+                      AND product.id IS NULL
+                ) THEN
+                    ALTER TABLE core.product_materials
+                    ADD CONSTRAINT product_materials_product_id_foreign
+                    FOREIGN KEY (product_id)
+                    REFERENCES core.products(id)
+                    ON DELETE CASCADE
+                    NOT VALID;
+
+                    RAISE WARNING
+                        'Added product_materials_product_id_foreign as NOT VALID because product_materials rows reference missing products. Reconcile those rows, then run ALTER TABLE core.product_materials VALIDATE CONSTRAINT product_materials_product_id_foreign.';
+                ELSE
+                    ALTER TABLE core.product_materials
+                    ADD CONSTRAINT product_materials_product_id_foreign
+                    FOREIGN KEY (product_id)
+                    REFERENCES core.products(id)
+                    ON DELETE CASCADE;
+                END IF;
             END IF;
         END
         $$;

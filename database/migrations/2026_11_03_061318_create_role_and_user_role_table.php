@@ -48,14 +48,14 @@ return new class extends Migration
 
         DB::statement("
         CREATE UNIQUE INDEX IF NOT EXISTS
-        user_role_user_id_role_id_unique
+        user_role_employee_id_role_id_unique
         ON sales.user_role (employee_id, role_id)
     ");
 
         DB::statement("
         CREATE INDEX IF NOT EXISTS
-        user_role_user_id_index
-        ON sales.user_role (user_id)
+        user_role_employee_id_index
+        ON sales.user_role (employee_id)
     ");
 
         DB::statement("
@@ -94,13 +94,13 @@ return new class extends Migration
                 FROM pg_constraint c
                 JOIN pg_class t ON t.oid = c.conrelid
                 JOIN pg_namespace n ON n.oid = t.relnamespace
-                WHERE c.conname = 'user_role_user_id_foreign'
+                WHERE c.conname = 'user_role_employee_id_foreign'
                   AND t.relname = 'user_role'
                   AND n.nspname = 'sales'
             ) THEN
                 ALTER TABLE sales.user_role
-                ADD CONSTRAINT user_role_user_id_foreign
-                FOREIGN KEY (user_id)
+                ADD CONSTRAINT user_role_employee_id_foreign
+                FOREIGN KEY (employee_id)
                 REFERENCES core.employees(id)
                 ON DELETE CASCADE;
             END IF;

@@ -38,8 +38,9 @@ export interface UserOption {
   employee_id: number;
   name: string;
   username: string | null;
-  role_id: number | null;
-  role_name: string | null;
+  role_ids: number[];
+  role_names: string[];
+  role_name: string;
   segmentation_ids: number[];
   segmentation_names: string[];
 }
@@ -73,7 +74,7 @@ export default function InquiryRoleManagement({
       const searchable = [
         user.name,
         user.username,
-        user.role_name,
+        ...user.role_names,
         ...(user.segmentation_names ?? []),
       ]
         .filter(Boolean)
@@ -219,15 +220,20 @@ export default function InquiryRoleManagement({
                           </td>
 
                           <td className="px-4 py-3">
-                            {user.role_name ? (
-                              <span className="inline-flex rounded-md bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                                {user.role_name}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">
-                                No Role
-                              </span>
-                            )}
+                            <div className="flex flex-wrap gap-1.5">
+                              {user.role_names.length ? (
+                                user.role_names.map((name) => (
+                                  <span
+                                    key={`${user.id}-role-${name}`}
+                                    className="inline-flex rounded-md bg-green-50 px-3 py-1 text-xs font-semibold text-green-700"
+                                  >
+                                    {name}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-gray-400">No Role</span>
+                              )}
+                            </div>
                           </td>
 
                           <td className="px-4 py-3">

@@ -115,27 +115,29 @@ class InquiryPrintController extends Controller
                 '=',
                 'i.pic'
             )
-            ->whereNull('i.deleted_at')
+            ->whereNull('i.deleted_at');
 
-            ->where(function ($query) use ($employeeId, $segmentationIds) {
+        if (! $request->user()->hasAnyRole([3])) {
+            $query->where(function ($query) use ($employeeId, $segmentationIds) {
                 $query->where('i.pic', $employeeId);
 
                 if ($segmentationIds !== []) {
                     $query->orWhereIn('i.segmentation_id', $segmentationIds);
                 }
-            })
+            });
+        }
 
-            ->select([
-                'i.id',
-                'i.code',
-                'i.date',
-                'i.pic as pic_id',
-                'e.first_name as pic_first_name',
-                'c.name as customer_name',
+        $query->select([
+            'i.id',
+            'i.code',
+            'i.date',
+            'i.pic as pic_id',
+            'e.first_name as pic_first_name',
+            'c.name as customer_name',
 
-                DB::raw('COUNT(d.id) as total_items'),
+            DB::raw('COUNT(d.id) as total_items'),
 
-                DB::raw("
+            DB::raw("
                 CASE
                     WHEN e.id IS NULL THEN NULL
                     ELSE TRIM(
@@ -147,7 +149,7 @@ class InquiryPrintController extends Controller
                     )
                 END as pic_name
             "),
-            ])
+        ])
             ->groupBy(
                 'i.id',
                 'i.code',

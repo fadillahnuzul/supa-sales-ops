@@ -29,14 +29,34 @@ beforeEach(function () {
         $table->timestamps();
     });
 
+    Schema::create('core.segmentations', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('name');
+    });
+
+    Schema::create('core.employee_segmentations', function (Blueprint $table): void {
+        $table->unsignedInteger('employee_id');
+        $table->unsignedInteger('segmentation_id');
+    });
+
+    Schema::create('sales.roles', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('name');
+    });
+
     Schema::create('sales.user_role', function (Blueprint $table): void {
-        $table->unsignedInteger('employee_id')->primary();
+        $table->increments('id');
+        $table->unsignedInteger('employee_id');
         $table->unsignedInteger('role_id');
+        $table->unique(['employee_id', 'role_id']);
     });
 });
 
 afterEach(function () {
     Schema::dropIfExists('sales.user_role');
+    Schema::dropIfExists('sales.roles');
+    Schema::dropIfExists('core.employee_segmentations');
+    Schema::dropIfExists('core.segmentations');
     Schema::dropIfExists('core.employees');
     DB::statement('DETACH DATABASE sales');
     DB::statement('DETACH DATABASE core');
@@ -147,4 +167,65 @@ it('shares the assigned role id with authenticated Inertia pages', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
             ->where('auth.user.role_id', 2));
+});
+
+it('supports multiple roles for an employee and shares all role ids', function () {
+    $employee = createEmployeeForAccessTest(2);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 3,
+    ]);
+
+    $this->withSession([
+        'employee_password_hash' => hash('sha256', $employee->password),
+    ])->actingAs($employee)->get('/dashboard')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.role_id', 2)
+            ->where('auth.user.role_ids', [2, 3]));
+
+    expect($employee->roleIds())->toBe([2, 3])
+        ->and($employee->canManageRoleManagement())->toBeTrue();
+});
+
+it('saves and updates several roles for one employee from role management', function () {
+    $manager = createEmployeeForAccessTest(3);
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-002',
+        'first_name' => 'Sales',
+        'last_name' => 'Employee',
+        'username' => 'sales.employee',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+
+    DB::table('sales.roles')->insert([
+        ['id' => 2, 'name' => 'Sales'],
+        ['id' => 3, 'name' => 'Sales Coordinator'],
+        ['id' => 4, 'name' => 'Sales Manager'],
+    ]);
+    $this->withSession([
+        'employee_password_hash' => hash('sha256', $manager->password),
+    ])->actingAs($manager);
+
+    $this->post(route('role-management.store'), [
+        'employee_id' => $employee->id,
+        'role_ids' => [2, 3],
+        'segmentation_ids' => [],
+    ])->assertRedirect(route('role-management'));
+
+    expect($employee->fresh()->roleIds())->toBe([2, 3]);
+
+    $this->get(route('role-management'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('InquiryRoleManagement')
+            ->where('users.1.role_ids', [2, 3])
+            ->where('users.1.role_names', ['Sales', 'Sales Coordinator']));
+
+    $this->put(route('role-management.update', $employee->id), [
+        'employee_id' => $employee->id,
+        'role_ids' => [4],
+        'segmentation_ids' => [],
+    ])->assertRedirect(route('role-management'));
+
+    expect($employee->fresh()->roleIds())->toBe([4]);
 });

@@ -67,8 +67,10 @@ beforeEach(function (): void {
     });
 
     Schema::create('sales.user_role', function (Blueprint $table): void {
-        $table->unsignedInteger('employee_id')->primary();
+        $table->increments('id');
+        $table->unsignedInteger('employee_id');
         $table->unsignedInteger('role_id');
+        $table->unique(['employee_id', 'role_id']);
     });
 
     Schema::create('sales.inquiries', function (Blueprint $table): void {
@@ -234,6 +236,34 @@ it('lists inquiries by the inquiry segmentation instead of the customer segmenta
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $visibleInquiryId);
+});
+
+it('allows a Sales Coordinator to view inquiries outside their assigned segmentations', function (): void {
+    $coordinator = createInquiryPrintEmployee('Sales', 'Coordinator');
+    assignInquiryPrintRole($coordinator, 3);
+
+    $date = now()->toDateString();
+    DB::table('sales.inquiries')->insert([
+        [
+            'code' => 'INQ-COORDINATOR-ONE',
+            'date' => $date.' 12:00:00',
+            'pic' => $coordinator->id + 1,
+            'segmentation_id' => 10,
+        ],
+        [
+            'code' => 'INQ-COORDINATOR-TWO',
+            'date' => $date.' 12:00:00',
+            'pic' => $coordinator->id + 2,
+            'segmentation_id' => 20,
+        ],
+    ]);
+    actAsInquiryPrintEmployee($coordinator);
+
+    $this->get('/inquiry-print/date-range?start_date='.$date.'&end_date='.$date)
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonFragment(['code' => 'INQ-COORDINATOR-ONE'])
+        ->assertJsonFragment(['code' => 'INQ-COORDINATOR-TWO']);
 });
 
 it('finds inquiries when the PIC has no employee position', function (): void {

@@ -12,23 +12,34 @@ class JobOrderController extends Controller
 {
     public function __construct(private InquiryPrintService $inquiryPrintService) {}
 
-    private function roleId(Request $request): int
+    /**
+     * @return list<int>
+     */
+    private function roleIds(Request $request): array
     {
-        $user = $request->user();
-        $id = $user->role->role_id ?? $user->role?->id ?? null;
-        abort_unless($id && in_array((int) $id, [1, 2, 3, 4, 5], true), 403, 'Tidak memiliki akses Job Order.');
+        $roleIds = array_values(array_intersect(
+            $request->user()->roleIds(),
+            [1, 2, 3, 4, 5]
+        ));
+        abort_unless($roleIds !== [], 403, 'Tidak memiliki akses Job Order.');
 
-        return (int) $id;
+        return $roleIds;
     }
 
     private function admin(Request $request): void
     {
-        abort_unless(in_array($this->roleId($request), [1, 4], true), 403);
+        abort_unless(
+            array_intersect($this->roleIds($request), [1, 4]) !== [],
+            403
+        );
     }
 
     private function approver(Request $request): void
     {
-        abort_unless(in_array($this->roleId($request), [2, 3, 5], true), 403);
+        abort_unless(
+            array_intersect($this->roleIds($request), [2, 3, 5]) !== [],
+            403
+        );
     }
 
     /** Return the segmentations assigned to the employee. */
@@ -41,12 +52,10 @@ class JobOrderController extends Controller
 
     private function visibleInquiries(Request $request)
     {
-        $role = $this->roleId($request);
-
         $query = DB::table('sales.inquiries as i')
             ->whereNull('i.deleted_at');
 
-        if ($role === 4 || $role === 5) {
+        if (array_intersect($this->roleIds($request), [3, 4, 5]) !== []) {
             return $query;
         }
 
@@ -70,18 +79,13 @@ class JobOrderController extends Controller
         return DB::table('sales.job_orders as jo')
             ->join('sales.inquiries as i', 'i.id', '=', 'jo.inquiry_id')
             ->where('jo.id', $id)
-            ->where(function () use ($request) {
-                if ($this->roleId($request) !== 5) {
-
-                }
-            })
             ->whereIn('jo.inquiry_id', $this->visibleInquiries($request)->select('i.id'))
             ->select('jo.*')->firstOrFail();
     }
 
     public function page(Request $request)
     {
-        return Inertia::render('JobOrderCenter', ['roleId' => $this->roleId($request)]);
+        return Inertia::render('JobOrderCenter', ['roleIds' => $this->roleIds($request)]);
     }
 
     public function index(Request $request)
@@ -337,7 +341,10 @@ class JobOrderController extends Controller
 
     public function print(Request $request, int $id)
     {
-        $this->admin($request);
+        abort_unless(
+            array_intersect($this->roleIds($request), [1, 2, 4]) !== [],
+            403
+        );
         $jo = $this->accessibleJo($request, $id);
         $details = DB::table('sales.job_order_details')->where('job_order_id', $id)->orderBy('sort_order')->get();
         $signerIds = collect([$jo->created_by, $jo->checked_by, $jo->approved_by])
