@@ -342,7 +342,7 @@ class JobOrderController extends Controller
     public function print(Request $request, int $id)
     {
         abort_unless(
-            array_intersect($this->roleIds($request), [1, 2, 4]) !== [],
+            array_intersect($this->roleIds($request), [1, 2, 3, 4, 5]) !== [],
             403
         );
         $jo = $this->accessibleJo($request, $id);

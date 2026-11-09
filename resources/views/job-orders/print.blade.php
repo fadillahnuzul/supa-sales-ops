@@ -144,7 +144,7 @@
         window.addEventListener('load', () => window.print(), { once: true });
     </script>
     <header>
-        <div class="company">SUPA &nbsp; PT. SUPA SURYA NIAGA</div>
+        <div class="company" style="display: flex; align-items: center; gap: 10px;"><img src="/images/supa-logo.png" alt="" style="width: 100px;"> &nbsp; PT. SUPA SURYA NIAGA</div>
         <div>
             <div class="title">PESANAN PENJUALAN</div>
             <div class="subtitle">JOB ORDER</div>

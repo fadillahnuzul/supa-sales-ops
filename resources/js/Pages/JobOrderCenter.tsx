@@ -366,7 +366,7 @@ export default function JobOrderCenter({ roleIds }: PageProps) {
     const isAdmin = roleIds.some((roleId) => [1, 4].includes(roleId));
     const isApprover = roleIds.includes(5);
     const canCheck = roleIds.some((roleId) => [2, 3].includes(roleId));
-    const canPrint = roleIds.some((roleId) => [1, 2, 4].includes(roleId));
+    const canPrint = roleIds.some((roleId) => [1, 2, 3, 4, 5].includes(roleId));
     const canApprove = canCheck || isApprover;
 
     // FILTER
