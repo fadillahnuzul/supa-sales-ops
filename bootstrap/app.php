@@ -49,6 +49,10 @@ return Application::configure(basePath: dirname(__DIR__))
                     $request->session()->regenerateToken();
                 }
 
+                if ($request->header('X-Inertia')) {
+                    return $response;
+                }
+
                 return redirect(
                     $request->is('login')
                         ? '/login'

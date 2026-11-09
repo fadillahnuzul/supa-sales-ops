@@ -1,6 +1,6 @@
 import '../css/app.css';
 
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import type { ComponentType } from 'react';
 
@@ -9,6 +9,21 @@ type PageModule = {
 };
 
 const pages = import.meta.glob<PageModule>('./Pages/**/*.tsx');
+
+router.on('httpException', (event) => {
+    if (event.detail.response.status !== 419) {
+        return;
+    }
+
+    event.preventDefault();
+
+    const isLoginPage = window.location.pathname.replace(/\/$/, '') === '/login';
+    const destination = isLoginPage
+        ? '/login'
+        : '/login?session_expired=1';
+
+    window.location.assign(destination);
+});
 
 createInertiaApp({
     title: (title) => `${title} - SUPA`,

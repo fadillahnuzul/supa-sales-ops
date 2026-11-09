@@ -109,7 +109,7 @@ it('logs out authenticated employees and redirects without an expired-session no
     $this->assertGuest('web');
 });
 
-it('redirects expired Inertia requests to login with a session-expired notice', function () {
+it('returns expired Inertia requests as 419 responses for the client handler', function () {
     $employee = createEmployeeForAccessTest(1);
     Auth::guard('web')->login($employee);
     $request = Request::create('/dashboard', 'POST');
@@ -122,14 +122,26 @@ it('redirects expired Inertia requests to login with a session-expired notice', 
         new TokenMismatchException
     );
 
-    expect($response->getStatusCode())->toBe(302)
-        ->and($response->headers->get('Location'))->toBe(url('/login?session_expired=1'));
+    expect($response->getStatusCode())->toBe(419);
     $this->assertGuest('web');
 });
 
-it('returns expired login submissions to a clean login page', function () {
+it('returns expired login submissions as 419 responses for the client handler', function () {
     $request = Request::create('/login', 'POST');
     $request->headers->set('X-Inertia', 'true');
+    $request->setLaravelSession(app('session')->driver());
+    $request->session()->start();
+
+    $response = app(ExceptionHandler::class)->render(
+        $request,
+        new TokenMismatchException
+    );
+
+    expect($response->getStatusCode())->toBe(419);
+});
+
+it('redirects expired non-Inertia login submissions to a clean login page', function () {
+    $request = Request::create('/login', 'POST');
     $request->setLaravelSession(app('session')->driver());
     $request->session()->start();
 
