@@ -8,7 +8,6 @@ import type {
     DatabaseTab,
     Division,
     RiskLevel,
-    Sterilization,
     Product,
     Competitor
 } from '../../types/databaseCenter';
@@ -74,7 +73,7 @@ export default function DatabaseFormModal({
         company: '',
         address: '',
         segmentationId: '',
-        sterilization: 'S' as Sterilization,
+        sterilizationId: '',
         level: 'Low' as RiskLevel,
         division: 'Industri' as Division,
         pic: '',
@@ -159,14 +158,14 @@ export default function DatabaseFormModal({
                     editingCustomer.segmentationId
                         ?.toString() ?? '',
 
-                sterilization:
-                    editingCustomer.sterilization ?? 'S',
+                sterilizationId:
+                    editingCustomer.sterilization_id?.toString() ?? '',
 
                 level:
-                    editingCustomer.level,
+                    editingCustomer.level ?? 'Low',
 
                 division:
-                    editingCustomer.division,
+                    editingCustomer.division ?? 'Industri',
 
                 pic:
                     editingCustomer.pic ?? '',
@@ -184,7 +183,7 @@ export default function DatabaseFormModal({
                 company: '',
                 address: '',
                 segmentationId: '',
-                sterilization: 'S',
+                sterilizationId: '',
                 level: 'Low',
                 division: 'Industri',
                 pic: '',
@@ -415,7 +414,9 @@ export default function DatabaseFormModal({
                         customerForm.segmentationId
                     )
                     : null,
-                sterilization: customerForm.sterilization,
+                sterilization_id: customerForm.sterilizationId
+                    ? Number(customerForm.sterilizationId)
+                    : null,
                 level: customerForm.level,
                 divisi: customerForm.division,
                 pic: customerForm.pic,
@@ -432,6 +433,10 @@ export default function DatabaseFormModal({
                     {
                         preserveScroll: true,
                         onSuccess: () => onClose(),
+                        onError: (errors) => {
+                            const message = Object.values(errors)[0];
+                            window.alert(String(message ?? 'Customer gagal diperbarui.'));
+                        },
                     }
                 );
 
@@ -444,6 +449,10 @@ export default function DatabaseFormModal({
                 {
                     preserveScroll: true,
                     onSuccess: () => onClose(),
+                    onError: (errors) => {
+                        const message = Object.values(errors)[0];
+                        window.alert(String(message ?? 'Customer gagal disimpan.'));
+                    },
                 }
             );
 
@@ -731,7 +740,6 @@ export default function DatabaseFormModal({
 
                                     <Field label="Segmentasi">
                                         <select
-                                            required
                                             value={customerForm.segmentationId}
                                             onChange={(e) =>
                                                 setCustomerForm({
@@ -802,25 +810,30 @@ export default function DatabaseFormModal({
                                     </Field>
                                     <Field label="Sterilisasi">
                                         <select
-                                            required
-                                            value={customerForm.sterilization}
+                                            value={
+                                                customerForm.sterilizationId
+                                            }
                                             onChange={(e) =>
                                                 setCustomerForm({
                                                     ...customerForm,
-                                                    sterilization: e.target.value as Sterilization,
+                                                    sterilizationId: e.target.value,
                                                 })
                                             }
-                                            className={inputClass}
+                                            className={
+                                                inputClass
+                                            }
                                         >
-                                            <option value="S">
-                                                S (Steril)
+                                            <option value="">
+                                                Pilih sterilization
                                             </option>
-                                            <option value="NS">
-                                                NS (Non-Steril)
-                                            </option>
-                                            <option value="SS">
-                                                SS (Super Steril)
-                                            </option>
+
+                                            {sterilizations.map(
+                                                (sterilization) => (
+                                                    <option key={sterilization.id} value={sterilization.id}>
+                                                        {sterilization.name}
+                                                    </option>
+                                                )
+                                            )}
                                         </select>
                                     </Field>
                                 </div>
@@ -828,7 +841,6 @@ export default function DatabaseFormModal({
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <Field label="Nama Narahubung">
                                         <input
-                                            required
                                             value={customerForm.pic}
                                             onChange={(e) =>
                                                 setCustomerForm({

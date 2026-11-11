@@ -2,6 +2,7 @@
 
 use App\Models\Core\CustomerModel;
 use App\Models\Core\SegmentationModel;
+use App\Models\Core\SterilizationModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Testing\File;
 
@@ -11,6 +12,12 @@ test('customer create update and delete accept frontend field names', function (
     $segmentation = SegmentationModel::create([
         'name' => 'General Food Processing',
     ]);
+    $standardSterilization = SterilizationModel::firstOrCreate([
+        'name' => 'S',
+    ]);
+    $superSterilization = SterilizationModel::firstOrCreate([
+        'name' => 'SS',
+    ]);
 
     $this->post(route('customers.store'), [
         'code' => 'CUS-001',
@@ -19,7 +26,7 @@ test('customer create update and delete accept frontend field names', function (
         'segmentationId' => $segmentation->id,
         'level' => 'Low',
         'division' => 'Industri',
-        'sterilization' => 'S',
+        'sterilization_id' => $standardSterilization->id,
         'pic' => 'Budi',
         'phone' => '081234567890',
     ])->assertSessionHasNoErrors();
@@ -31,7 +38,7 @@ test('customer create update and delete accept frontend field names', function (
         ->and($customer->code)->toBe('CUS-001')
         ->and($customer->segmentation_id)->toBe($segmentation->id)
         ->and($customer->divisi)->toBe('Industri')
-        ->and($customer->sterilization)->toBe('S');
+        ->and($customer->sterilization_id)->toBe($standardSterilization->id);
 
     $this->put(route('customers.update', $customer), [
         'code' => 'CUS-002',
@@ -40,7 +47,7 @@ test('customer create update and delete accept frontend field names', function (
         'segmentationId' => $segmentation->id,
         'level' => 'Medium',
         'division' => 'SME',
-        'sterilization' => 'SS',
+        'sterilization_id' => $superSterilization->id,
         'pic' => 'Andi',
         'phone' => '081299988877',
     ])->assertSessionHasNoErrors();
@@ -51,7 +58,7 @@ test('customer create update and delete accept frontend field names', function (
         ->and($customer->code)->toBe('CUS-002')
         ->and($customer->divisi)->toBe('SME')
         ->and($customer->level)->toBe('Medium')
-        ->and($customer->sterilization)->toBe('SS');
+        ->and($customer->sterilization_id)->toBe($superSterilization->id);
 
     $this->put(route('customers.update', $customer), [
         'code' => null,
@@ -60,7 +67,7 @@ test('customer create update and delete accept frontend field names', function (
         'segmentationId' => $segmentation->id,
         'level' => 'Medium',
         'division' => 'SME',
-        'sterilization' => 'SS',
+        'sterilization_id' => $superSterilization->id,
         'pic' => 'Andi',
         'phone' => '081299988877',
     ])->assertSessionHasNoErrors();
@@ -77,6 +84,9 @@ test('customer accepts segmentation names and resolves them to ids', function ()
     $segmentation = SegmentationModel::create([
         'name' => 'General',
     ]);
+    $sterilization = SterilizationModel::firstOrCreate([
+        'name' => 'S',
+    ]);
 
     $this->post(route('customers.store'), [
         'company' => 'PT Teknik Nusantara',
@@ -84,7 +94,7 @@ test('customer accepts segmentation names and resolves them to ids', function ()
         'segmentation' => 'General',
         'level' => 'Low',
         'division' => 'Industri',
-        'sterilization' => 'S',
+        'sterilization_id' => $sterilization->id,
         'pic' => 'Rina',
         'phone' => '081222233334',
     ])->assertSessionHasNoErrors();
@@ -100,6 +110,9 @@ test('customer import reads generated excel template and saves code and steriliz
     $segmentation = SegmentationModel::create([
         'name' => 'General',
     ]);
+    $sterilization = SterilizationModel::firstOrCreate([
+        'name' => 'S',
+    ]);
 
     $template = $this->get(route('customers.template'))
         ->assertOk()
@@ -114,13 +127,16 @@ test('customer import reads generated excel template and saves code and steriliz
         'code' => 'CUS-001',
         'segmentation_id' => $segmentation->id,
         'divisi' => 'Industri',
-        'sterilization' => 'S',
+        'sterilization_id' => $sterilization->id,
     ]);
 });
 
 test('customer import accepts older templates without sterilization', function () {
     $segmentation = SegmentationModel::create([
         'name' => 'General',
+    ]);
+    $sterilization = SterilizationModel::firstOrCreate([
+        'name' => 'S',
     ]);
 
     $csv = "company,address,segmentation,level,division,pic,phone\n".
@@ -134,13 +150,16 @@ test('customer import accepts older templates without sterilization', function (
         'name' => 'PT Legacy Import',
         'code' => null,
         'segmentation_id' => $segmentation->id,
-        'sterilization' => 'S',
+        'sterilization_id' => $sterilization->id,
     ]);
 });
 
 test('customer code cannot exceed 50 characters', function () {
     $segmentation = SegmentationModel::create([
         'name' => 'General',
+    ]);
+    $sterilization = SterilizationModel::firstOrCreate([
+        'name' => 'S',
     ]);
 
     $this->post(route('customers.store'), [
@@ -150,12 +169,25 @@ test('customer code cannot exceed 50 characters', function () {
         'segmentationId' => $segmentation->id,
         'level' => 'Low',
         'division' => 'Industri',
-        'sterilization' => 'S',
+        'sterilization_id' => $sterilization->id,
         'pic' => 'Budi',
         'phone' => '081234567890',
     ])->assertSessionHasErrors('code');
 
     $this->assertDatabaseMissing('customers', [
         'name' => 'PT Invalid Code',
+    ]);
+});
+
+test('customer rejects an unknown sterilization ID', function () {
+    $this->post(route('customers.store'), [
+        'company' => 'PT Invalid Sterilization',
+        'level' => 'Low',
+        'division' => 'Industri',
+        'sterilization_id' => 999999,
+    ])->assertSessionHasErrors('sterilization_id');
+
+    $this->assertDatabaseMissing('customers', [
+        'name' => 'PT Invalid Sterilization',
     ]);
 });

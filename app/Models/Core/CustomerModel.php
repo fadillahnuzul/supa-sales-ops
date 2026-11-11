@@ -22,7 +22,7 @@ class CustomerModel extends Model
         'segmentation_id',
         'level',
         'divisi',
-        'sterilization',
+        'sterilization_id',
     ];
 
     public function segmentation(): BelongsTo
@@ -30,6 +30,14 @@ class CustomerModel extends Model
         return $this->belongsTo(
             SegmentationModel::class,
             'segmentation_id'
+        );
+    }
+
+    public function sterilization(): BelongsTo
+    {
+        return $this->belongsTo(
+            SterilizationModel::class,
+            'sterilization_id'
         );
     }
 

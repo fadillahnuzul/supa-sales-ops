@@ -158,7 +158,7 @@ export default function CustomerTable({
                                     </td>
 
                                     <td className="px-3 py-1">
-                                        {customer.sterilization}
+                                        {customer.sterilization?.name ?? '-'}
                                     </td>
 
                                     <td className="px-3 py-1">

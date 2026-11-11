@@ -74,7 +74,10 @@ class CustomerController extends Controller
         $sterilizations = SterilizationModel::orderBy('name')->get();
 
         $customers = CustomerModel::query()
-            ->with('segmentation:id,name')
+            ->with([
+                'segmentation:id,name',
+                'sterilization:id,name',
+            ])
             ->orderBy('name')
             ->get()
             ->map(function (CustomerModel $customer) {
@@ -86,6 +89,8 @@ class CustomerController extends Controller
                     'address' => $customer->address,
                     'segmentationId' => $customer->segmentation_id,
                     'segmentation' => $customer->segmentation?->name ?? '-',
+                    'sterilization_id' => $customer->sterilization_id,
+                    'sterilization' => $customer->sterilization,
                     'level' => $customer->level,
                     'division' => $customer->divisi,
                     'pic' => $customer->pic,
@@ -375,9 +380,13 @@ class CustomerController extends Controller
                 'string',
                 'max:50',
             ],
-            'sterilization' => [
-                'required',
-                Rule::in(['NS', 'S', 'SS']),
+            'sterilization_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(
+                    SterilizationModel::class,
+                    'id'
+                ),
             ],
         ]);
 
@@ -396,7 +405,7 @@ class CustomerController extends Controller
 
         return array_filter(
             $validated,
-            fn($value, $key) => $key === 'code' || $value !== null,
+            fn($value, $key) => in_array($key, ['code', 'sterilization_id'], true) || $value !== null,
             ARRAY_FILTER_USE_BOTH
         );
     }
@@ -522,7 +531,7 @@ class CustomerController extends Controller
         $address = trim((string) ($row['address'] ?? ''));
         $division = $this->normalizeImportDivision((string) ($row['division'] ?? ''));
         $level = $this->normalizeImportLevel((string) ($row['level'] ?? ''));
-        $sterilization = $this->normalizeImportSterilization((string) ($row['sterilization'] ?? ''));
+        $sterilizationId = $this->normalizeImportSterilizationId((string) ($row['sterilization'] ?? ''));
         $pic = trim((string) ($row['pic'] ?? ''));
         $phone = trim((string) ($row['phone'] ?? ''));
         $segmentationId = $this->normalizeImportSegmentationId((string) ($row['segmentation'] ?? $row['segmentationId'] ?? ''));
@@ -534,7 +543,7 @@ class CustomerController extends Controller
             'segmentation_id' => $segmentationId,
             'level' => $level,
             'divisi' => $division,
-            'sterilization' => $sterilization,
+            'sterilization_id' => $sterilizationId,
             'pic' => $pic,
             'phone' => $phone,
         ];
@@ -551,7 +560,7 @@ class CustomerController extends Controller
             'segmentation_id' => ['nullable', 'integer', Rule::exists(SegmentationModel::class, 'id')],
             'level' => ['nullable', Rule::in(['Low', 'Medium', 'High'])],
             'divisi' => ['nullable', Rule::in(['Industri', 'SME', 'Low Cost', 'All'])],
-            'sterilization' => ['nullable', Rule::in(['NS', 'S', 'SS'])],
+            'sterilization_id' => ['nullable', 'integer', Rule::exists(SterilizationModel::class, 'id')],
             'pic' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
         ]);
@@ -624,5 +633,28 @@ class CustomerController extends Controller
             'ss', 'super steril', 'ss (super steril)' => 'SS',
             default => null,
         };
+    }
+
+    private function normalizeImportSterilizationId(string $value): int
+    {
+        $sterilizationName = $this->normalizeImportSterilization($value);
+
+        if ($sterilizationName === null) {
+            throw new \InvalidArgumentException(
+                sprintf('Nilai sterilisasi "%s" tidak valid.', $value)
+            );
+        }
+
+        $sterilizationId = SterilizationModel::query()
+            ->where('name', $sterilizationName)
+            ->value('id');
+
+        if ($sterilizationId === null) {
+            throw new \InvalidArgumentException(
+                sprintf('Data sterilisasi "%s" tidak ditemukan.', $sterilizationName)
+            );
+        }
+
+        return (int) $sterilizationId;
     }
 }

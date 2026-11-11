@@ -26,7 +26,11 @@ export interface Customer {
     pic: string | null;
     phone: string | null;
 
-    sterilization: string | null;
+    sterilization_id: number | null;
+    sterilization: {
+        id: number;
+        name: string;
+    } | null;
 }
 
 export interface Segmentation {
