@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Core\CustomerModel;
 use App\Models\Core\GradeModel;
+use App\Models\Core\SterilizationModel;
 use App\Models\Core\MaterialModel;
 use App\Models\Core\ProductModel;
 use App\Models\Core\SegmentationModel;
@@ -22,67 +23,56 @@ class CustomerController extends Controller
     {
         $products =
             ProductModel::query()
-                ->with([
-                    'grade',
-                    'materials.material',
-                ])
-                ->orderBy('name')
-                ->get();
+            ->with([
+                'grade',
+                'materials.material',
+                'sterilization',
+            ])
+            ->orderBy('name')
+            ->get();
 
         $materialOptions =
             MaterialModel::query()
-                ->orderBy('name')
-                ->get()
-                ->map(
-                    fn ($material) => [
-                        'id' => $material->getKey(),
-
-                        'name' => $material->name,
-
-                        'code' => $material->code
-                            ?? null,
-
-                        'source_type' => 'material',
-
-                        'source_key' => 'material:'.
-                            $material->getKey(),
-                    ]
-                );
+            ->orderBy('name')
+            ->get()
+            ->map(
+                fn($material) => [
+                    'id' => $material->getKey(),
+                    'name' => $material->name,
+                    'code' => $material->code
+                        ?? null,
+                    'source_type' => 'material',
+                    'source_key' => 'material:' .
+                        $material->getKey(),
+                ]
+            );
 
         $productOptions =
             ProductModel::query()
-                ->orderBy('name')
-                ->get()
-                ->map(
-                    fn ($product) => [
-                        'id' => $product->getKey(),
-
-                        'name' => $product->name,
-
-                        'code' => $product->code,
-
-                        'source_type' => 'product',
-
-                        'source_key' => 'product:'.
-                            $product->getKey(),
-                    ]
-                );
+            ->orderBy('name')
+            ->get()
+            ->map(
+                fn($product) => [
+                    'id' => $product->getKey(),
+                    'name' => $product->name,
+                    'code' => $product->code,
+                    'source_type' => 'product',
+                    'source_key' => 'product:' .
+                        $product->getKey(),
+                ]
+            );
 
         $materials =
             $materialOptions
-                ->concat(
-                    $productOptions
-                )
-                ->values();
+            ->concat(
+                $productOptions
+            )
+            ->values();
 
-        $grades =
-            GradeModel::query()
-                ->select([
-                    'id',
-                    'name',
-                ])
-                ->orderBy('name')
-                ->get();
+        $grades = GradeModel::orderBy('name')->get();
+
+        $sterilizations = SterilizationModel::orderBy('name')->get();
+
         $customers = CustomerModel::query()
             ->with('segmentation:id,name')
             ->orderBy('name')
@@ -94,19 +84,12 @@ class CustomerController extends Controller
                     'code' => $customer->code,
                     'company' => $customer->name,
                     'address' => $customer->address,
-
                     'segmentationId' => $customer->segmentation_id,
-
                     'segmentation' => $customer->segmentation?->name ?? '-',
-
                     'level' => $customer->level,
-
                     'division' => $customer->divisi,
-
                     'pic' => $customer->pic,
                     'phone' => $customer->phone,
-
-                    'sterilization' => $customer->sterilization,
                 ];
             });
 
@@ -153,7 +136,6 @@ class CustomerController extends Controller
         return Inertia::render(
             'DatabaseCenter',
             [
-
                 'customers' => $customers,
                 'products' => $products,
                 'competitors' => $competitors,
@@ -161,6 +143,7 @@ class CustomerController extends Controller
                 'segmentations' => $segmentations,
                 'materials' => $materials,
                 'grades' => $grades,
+                'sterilizations' => $sterilizations,
             ]
         );
     }
@@ -413,7 +396,7 @@ class CustomerController extends Controller
 
         return array_filter(
             $validated,
-            fn ($value, $key) => $key === 'code' || $value !== null,
+            fn($value, $key) => $key === 'code' || $value !== null,
             ARRAY_FILTER_USE_BOTH
         );
     }
@@ -486,7 +469,7 @@ class CustomerController extends Controller
 
             $record['sterilization'] = $record['sterilization'] ?: 'S';
 
-            if (empty(array_filter($record, fn ($value) => $value !== ''))) {
+            if (empty(array_filter($record, fn($value) => $value !== ''))) {
                 continue;
             }
 
@@ -579,7 +562,7 @@ class CustomerController extends Controller
 
         return array_filter(
             $validated,
-            fn ($value) => $value !== null && $value !== ''
+            fn($value) => $value !== null && $value !== ''
         );
     }
 

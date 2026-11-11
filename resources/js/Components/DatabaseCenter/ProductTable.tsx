@@ -48,6 +48,10 @@ export default function ProductTable({
                             </th>
 
                             <th className="px-3 py-2">
+                                Steril
+                            </th>
+
+                            <th className="px-3 py-2">
                                 Botanical Name
                             </th>
 
@@ -106,6 +110,10 @@ export default function ProductTable({
                                         <span className="rounded border border-gray-300 bg-gray-50 px-2 py-1 font-mono text-xs">
                                             {product.code}
                                         </span>
+                                    </td>
+
+                                    <td className="px-3 py-1">
+                                        {product.sterilization?.name ?? '-'}
                                     </td>
 
                                     <td className="px-3 py-1">

@@ -55,18 +55,19 @@ interface GradeOption {
     name: string;
 }
 
+interface SterilizationOption {
+    id: number;
+    name: string;
+}
+
 interface DatabaseCenterProps {
     customers: Customer[];
-
     products: Product[];
-
     competitors: Competitor[];
-
     segmentations: SegmentationOption[];
-
     materials: MaterialOption[];
-
     grades: GradeOption[];
+    sterilizations: SterilizationOption[];
 }
 
 function getInitialDatabaseTab(): DatabaseTab {
@@ -98,6 +99,7 @@ export default function DatabaseCenter({
     segmentations = [],
     materials = [],
     grades = [],
+    sterilizations = [],
     competitors = [],
 }: DatabaseCenterProps) {
     /*
@@ -846,6 +848,10 @@ export default function DatabaseCenter({
 
                     grades={
                         grades
+                    }
+
+                    sterilizations={
+                        sterilizations
                     }
                 />
             </AuthenticatedLayout>

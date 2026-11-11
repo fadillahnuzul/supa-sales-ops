@@ -26,6 +26,7 @@ class ProductModel extends Model
         'code',
         'std_price',
         'grade_id',
+        'sterilization_id',
         'botanical_name',
         'fda',
         'fssc',
@@ -89,5 +90,10 @@ class ProductModel extends Model
             ProductMaterialModel::class,
             'product_id'
         );
+    }
+
+    public function sterilization(): BelongsTo
+    {
+        return $this->belongsTo(SterilizationModel::class, 'sterilization_id');
     }
 }

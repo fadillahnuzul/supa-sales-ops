@@ -63,6 +63,8 @@ export interface Product {
 
     grade_id: number | null;
 
+    sterilization_id: number | null;
+
     botanical_name?: string | null;
 
     fda?: string | null;
@@ -74,6 +76,11 @@ export interface Product {
     halal?: string | null;
 
     grade?: {
+        id: number;
+        name: string;
+    } | null;
+
+    sterilization?: {
         id: number;
         name: string;
     } | null;

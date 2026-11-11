@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Core\ProductModel;
+use App\Models\Core\SterilizationModel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -45,6 +46,46 @@ test('product certification fields can be created and updated', function () {
         ->and($product->fssc)->toBe('FSSC-22000 V6')
         ->and($product->kosher)->toBe('Kosher Approved')
         ->and($product->halal)->toBe('Halal Approved');
+});
+
+test('product sterilization is persisted when created', function () {
+    $sterilization = SterilizationModel::create([
+        'name' => 'Steam',
+    ]);
+
+    $this->post(route('products.store'), [
+        'name' => 'Sterilized Product',
+        'code' => 'PROD-STERILIZED',
+        'std_price' => 125000,
+        'sterilization_id' => $sterilization->id,
+    ])->assertSessionHasNoErrors();
+
+    $product = ProductModel::query()
+        ->where('code', 'PROD-STERILIZED')
+        ->firstOrFail();
+
+    expect($product->sterilization_id)->toBe($sterilization->id);
+});
+
+test('product sterilization is persisted when updated', function () {
+    $sterilization = SterilizationModel::create([
+        'name' => 'Steam',
+    ]);
+
+    $product = ProductModel::create([
+        'name' => 'Product to Update',
+        'code' => 'PROD-UPDATE-STERILIZATION',
+        'std_price' => 125000,
+    ]);
+
+    $this->put(route('products.update', $product), [
+        'name' => 'Product to Update',
+        'code' => 'PROD-UPDATE-STERILIZATION',
+        'std_price' => 125000,
+        'sterilization_id' => $sterilization->id,
+    ])->assertSessionHasNoErrors();
+
+    expect($product->refresh()->sterilization_id)->toBe($sterilization->id);
 });
 
 test('product certification fields cannot exceed their column lengths', function () {

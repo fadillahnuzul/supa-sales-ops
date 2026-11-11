@@ -6,6 +6,7 @@ use App\Models\Core\GradeModel;
 use App\Models\Core\MaterialModel;
 use App\Models\Core\ProductMaterialModel;
 use App\Models\Core\ProductModel;
+use App\Models\Core\SterilizationModel;
 use App\Support\SpreadsheetFile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,6 +40,9 @@ class ProductController extends Controller
                         'std_price' => $validated['std_price'],
 
                         'grade_id' => $validated['grade_id']
+                            ?? null,
+
+                        'sterilization_id' => $validated['sterilization_id']
                             ?? null,
 
                         'botanical_name' => $validated['botanical_name']
@@ -94,6 +98,9 @@ class ProductController extends Controller
                     'std_price' => $validated['std_price'],
 
                     'grade_id' => $validated['grade_id']
+                        ?? null,
+
+                    'sterilization_id' => $validated['sterilization_id']
                         ?? null,
 
                     'botanical_name' => $validated['botanical_name']
@@ -360,6 +367,7 @@ class ProductController extends Controller
                         'code' => $row['code'],
                         'std_price' => $row['std_price'],
                         'grade_id' => $row['grade_id'],
+                        'sterilization_id' => $row['sterilization_id'] ?? null,
                     ]);
                 }
 
@@ -521,6 +529,14 @@ class ProductController extends Controller
                     'id'
                 ),
             ],
+            'sterilization_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(
+                    config('database.default').'.'.(new SterilizationModel)->getTable(),
+                    'id'
+                ),
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -564,6 +580,7 @@ class ProductController extends Controller
             'kosher' => $validated['kosher'] ?? null,
             'halal' => $validated['halal'] ?? null,
             'grade_id' => $validated['grade_id'] ?? null,
+            'sterilization_id' => $validated['sterilization_id'] ?? null,
             'material_names' => array_values($materialNames),
         ];
     }
@@ -613,6 +630,16 @@ class ProductController extends Controller
 
                 Rule::exists(
                     $gradeTable,
+                    'id'
+                ),
+            ],
+
+            'sterilization_id' => [
+                'nullable',
+                'integer',
+
+                Rule::exists(
+                    SterilizationModel::class,
                     'id'
                 ),
             ],

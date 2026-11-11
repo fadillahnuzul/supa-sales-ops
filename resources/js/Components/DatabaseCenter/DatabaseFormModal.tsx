@@ -2,10 +2,6 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { route } from 'ziggy-js';
-import {
-    Plus,
-    Trash2,
-} from 'lucide-react';
 
 import type {
     Customer,
@@ -31,6 +27,7 @@ interface Props {
     materials?: MaterialOption[];
     products?: Product[];
     grades?: GradeOption[];
+    sterilizations?: SterilizationOption[];
 }
 
 interface SegmentationOption {
@@ -52,6 +49,11 @@ interface GradeOption {
     name: string;
 }
 
+interface SterilizationOption {
+    id: number;
+    name: string;
+}
+
 export default function DatabaseFormModal({
     open,
     activeTab,
@@ -65,6 +67,7 @@ export default function DatabaseFormModal({
     materials = [],
     products = [],
     grades = [],
+    sterilizations = [],
 }: Props) {
     const [customerForm, setCustomerForm] = useState({
         code: '',
@@ -89,6 +92,7 @@ export default function DatabaseFormModal({
         halal: '',
         materials: [] as string[],
         gradeId: '',
+        sterilizationId: '',
     });
 
     const [
@@ -249,6 +253,11 @@ export default function DatabaseFormModal({
                     editingProduct.grade_id
                         ?.toString() ??
                     '',
+
+                sterilizationId:
+                    editingProduct.sterilization_id
+                        ?.toString() ??
+                    '',
             });
 
             return;
@@ -265,6 +274,7 @@ export default function DatabaseFormModal({
             halal: '',
             materials: [],
             gradeId: '',
+            sterilizationId: '',
         });
     }, [
         open,
@@ -477,6 +487,13 @@ export default function DatabaseFormModal({
                     productForm.gradeId
                         ? Number(
                             productForm.gradeId
+                        )
+                        : null,
+
+                sterilization_id:
+                    productForm.sterilizationId
+                        ? Number(
+                            productForm.sterilizationId
                         )
                         : null,
             };
@@ -844,7 +861,7 @@ export default function DatabaseFormModal({
                         {activeTab === 'product' && (
                             <>
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Nama Produk">
+                                    <Field label="Product Name">
                                         <input
                                             required
                                             value={
@@ -854,8 +871,7 @@ export default function DatabaseFormModal({
                                                 setProductForm({
                                                     ...productForm,
 
-                                                    name:
-                                                        e.target.value,
+                                                    name: e.target.value,
                                                 })
                                             }
                                             className={
@@ -865,7 +881,7 @@ export default function DatabaseFormModal({
                                         />
                                     </Field>
 
-                                    <Field label="Item Code">
+                                    <Field label="Item Code / SKU">
                                         <input
                                             required
                                             value={
@@ -875,8 +891,7 @@ export default function DatabaseFormModal({
                                                 setProductForm({
                                                     ...productForm,
 
-                                                    code:
-                                                        e.target.value,
+                                                    code: e.target.value,
                                                 })
                                             }
                                             className={
@@ -891,7 +906,6 @@ export default function DatabaseFormModal({
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <Field label="Standard Price">
                                         <input
-                                            required
                                             type="number"
                                             min="0"
                                             value={
@@ -915,9 +929,7 @@ export default function DatabaseFormModal({
 
                                     <Field label="Grade">
                                         <select
-                                            value={
-                                                productForm.gradeId
-                                            }
+                                            value={productForm.gradeId}
                                             onChange={(e) =>
                                                 setProductForm({
                                                     ...productForm,
@@ -930,247 +942,48 @@ export default function DatabaseFormModal({
                                                 inputClass
                                             }
                                         >
-                                            <option value="">
-                                                Pilih grade
-                                            </option>
-
+                                            <option value=""> == Pilih grade == </option>
                                             {grades.map(
                                                 (grade) => (
-                                                    <option
-                                                        key={
-                                                            grade.id
-                                                        }
-                                                        value={
-                                                            grade.id
-                                                        }
-                                                    >
-                                                        {
-                                                            grade.name
-                                                        }
+                                                    <option key={grade.id}
+                                                        value={grade.id}>
+                                                        {grade.name}
                                                     </option>
                                                 )
                                             )}
                                         </select>
                                     </Field>
-                                </div>
 
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="Botanical Name">
-                                        <input
-                                            maxLength={100}
-                                            value={productForm.botanicalName}
+                                    <Field label="Steril">
+                                        <select
+                                            value={
+                                                productForm.sterilizationId
+                                            }
                                             onChange={(e) =>
                                                 setProductForm({
                                                     ...productForm,
-                                                    botanicalName: e.target.value,
+
+                                                    sterilizationId:
+                                                        e.target.value,
                                                 })
                                             }
-                                            className={inputClass}
-                                        />
-                                    </Field>
-
-                                    <Field label="FDA">
-                                        <input
-                                            maxLength={50}
-                                            value={productForm.fda}
-                                            onChange={(e) =>
-                                                setProductForm({
-                                                    ...productForm,
-                                                    fda: e.target.value,
-                                                })
+                                            className={
+                                                inputClass
                                             }
-                                            className={inputClass}
-                                        />
-                                    </Field>
-
-                                    <Field label="FSSC">
-                                        <input
-                                            maxLength={50}
-                                            value={productForm.fssc}
-                                            onChange={(e) =>
-                                                setProductForm({
-                                                    ...productForm,
-                                                    fssc: e.target.value,
-                                                })
-                                            }
-                                            className={inputClass}
-                                        />
-                                    </Field>
-
-                                    <Field label="Kosher">
-                                        <input
-                                            maxLength={50}
-                                            value={productForm.kosher}
-                                            onChange={(e) =>
-                                                setProductForm({
-                                                    ...productForm,
-                                                    kosher: e.target.value,
-                                                })
-                                            }
-                                            className={inputClass}
-                                        />
-                                    </Field>
-
-                                    <Field label="Halal">
-                                        <input
-                                            maxLength={50}
-                                            value={productForm.halal}
-                                            onChange={(e) =>
-                                                setProductForm({
-                                                    ...productForm,
-                                                    halal: e.target.value,
-                                                })
-                                            }
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                </div>
-
-
-                                {/* MATERIALS */}
-
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-700">
-                                                Materials
-                                            </div>
-
-                                            <div className="mt-1 text-xs text-gray-500">
-                                                Tambahkan satu atau beberapa material untuk produk ini.
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            onClick={
-                                                addProductMaterial
-                                            }
-                                            className="inline-flex items-center gap-2 rounded-lg border border-[#19875f] px-3 py-2 text-sm font-medium text-[#19875f] transition hover:bg-emerald-50"
                                         >
-                                            <Plus size={16} />
+                                            <option value="">
+                                                Pilih sterilization
+                                            </option>
 
-                                            Add Material
-                                        </button>
-                                    </div>
-
-
-                                    {productForm.materials.length ===
-                                        0 && (
-                                            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
-                                                Belum ada material.
-                                                Klik Add Material untuk menambahkan.
-                                            </div>
-                                        )}
-
-
-                                    {productForm.materials.map(
-                                        (
-                                            selectedMaterial,
-                                            index
-                                        ) => (
-                                            <div
-                                                key={
-                                                    index
-                                                }
-                                                className="flex items-center gap-3"
-                                            >
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={
-                                                            selectedMaterial
-                                                        }
-                                                        onChange={(
-                                                            e
-                                                        ) =>
-                                                            updateProductMaterial(
-                                                                index,
-                                                                e.target
-                                                                    .value
-                                                            )
-                                                        }
-                                                        className={
-                                                            inputClass
-                                                        }
-                                                    >
-                                                        <option value="">
-                                                            Pilih material
-                                                        </option>
-
-                                                        {materials
-                                                            .filter(
-                                                                (
-                                                                    material
-                                                                ) =>
-                                                                    material.source_key !==
-                                                                    `product:${editingProduct?.id}`
-                                                            )
-                                                            .map(
-                                                                (
-                                                                    material
-                                                                ) => {
-                                                                    /*
-                                                                     * Jangan izinkan
-                                                                     * source yang sudah
-                                                                     * dipilih di row lain.
-                                                                     */
-                                                                    const alreadySelected =
-                                                                        productForm.materials.some(
-                                                                            (
-                                                                                value,
-                                                                                itemIndex
-                                                                            ) =>
-                                                                                itemIndex !==
-                                                                                index &&
-                                                                                value ===
-                                                                                material.source_key
-                                                                        );
-
-                                                                    return (
-                                                                        <option
-                                                                            key={
-                                                                                material.source_key
-                                                                            }
-                                                                            value={
-                                                                                material.source_key
-                                                                            }
-                                                                            disabled={
-                                                                                alreadySelected
-                                                                            }
-                                                                        >
-                                                                            {
-                                                                                material.name
-                                                                            }
-
-                                                                            {material.code
-                                                                                ? ` - ${material.code}`
-                                                                                : ''}
-                                                                        </option>
-                                                                    );
-                                                                }
-                                                            )}
-                                                    </select>
-                                                </div>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        removeProductMaterial(
-                                                            index
-                                                        )
-                                                    }
-                                                    className="rounded-lg border border-red-200 p-3 text-red-500 transition hover:bg-red-50 hover:text-red-700"
-                                                    title="Hapus material"
-                                                >
-                                                    <Trash2
-                                                        size={
-                                                            17
-                                                        }
-                                                    />
-                                                </button>
-                                            </div>
-                                        )
-                                    )}
+                                            {sterilizations.map(
+                                                (sterilization) => (
+                                                    <option key={sterilization.id} value={sterilization.id}>
+                                                        {sterilization.name}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                    </Field>
                                 </div>
                             </>
                         )}
