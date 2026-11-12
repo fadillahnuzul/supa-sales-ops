@@ -225,7 +225,11 @@ Route::middleware('auth')->group(function () {
     Route::prefix('job-orders')->name('job-orders.')->group(function () {
         Route::get('/', [JobOrderController::class, 'page'])->name('page');
         Route::get('/list', [JobOrderController::class, 'index'])->name('list');
+        Route::get('/customers', [JobOrderController::class, 'customers'])->name('customers');
+        Route::get('/products', [JobOrderController::class, 'products'])->name('products');
+        Route::get('/template', [JobOrderController::class, 'template'])->name('template');
         Route::get('/inquiry/{id}', [JobOrderController::class, 'showInquiry'])->whereNumber('id');
+        Route::post('/bulk-import', [JobOrderController::class, 'import'])->name('bulk-import');
         Route::post('/', [JobOrderController::class, 'store'])->name('store');
         Route::post('/bulk-approve', [JobOrderController::class, 'bulkApprove']);
         Route::post('/{id}/approve', [JobOrderController::class, 'approve'])->whereNumber('id');

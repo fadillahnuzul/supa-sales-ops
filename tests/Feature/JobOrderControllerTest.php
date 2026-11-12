@@ -34,7 +34,9 @@ beforeEach(function () {
 
     Schema::create('core.customers', function (Blueprint $table): void {
         $table->increments('id');
+        $table->string('code')->nullable();
         $table->string('name')->nullable();
+        $table->string('address')->nullable();
         $table->unsignedBigInteger('segmentation_id')->nullable();
     });
 
@@ -70,7 +72,7 @@ beforeEach(function () {
 
     Schema::create('sales.job_orders', function (Blueprint $table): void {
         $table->increments('id');
-        $table->unsignedInteger('inquiry_id')->unique();
+        $table->unsignedInteger('inquiry_id')->nullable();
         $table->date('date');
         $table->string('so_no')->unique();
         $table->string('po_no');
@@ -123,6 +125,7 @@ afterEach(function () {
     Schema::dropIfExists('sales.inquiries');
     Schema::dropIfExists('sales.user_role');
     Schema::dropIfExists('sales.roles');
+    Schema::dropIfExists('core.products');
     Schema::dropIfExists('core.customers');
     Schema::dropIfExists('core.employee_segmentations');
     Schema::dropIfExists('core.employees');
@@ -216,7 +219,6 @@ it('lists inquiries by their inquiry segmentation even when their customer has a
         'employee_id' => $employee->id,
         'role_id' => 1,
     ]);
-
     DB::table('core.employee_segmentations')->insert([
         'employee_id' => $employee->id,
         'segmentation_id' => 10,
@@ -298,6 +300,41 @@ it('allows a Sales Coordinator to open any listed job order', function () {
         ->assertOk()
         ->assertJsonPath('id', $jobOrderId)
         ->assertJsonPath('so_no', 'SO-COORDINATOR-DETAIL');
+});
+
+it('returns the PIC name for a Sales user when the job order only stores the PIC id', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-PIC-NAME',
+        'first_name' => 'Sales',
+        'last_name' => 'Person',
+        'username' => 'job.order.pic.name',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 2,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $jobOrderId = DB::table('sales.job_orders')->insertGetId([
+        'inquiry_id' => null,
+        'date' => now()->toDateString(),
+        'so_no' => 'SO-PIC-NAME',
+        'po_no' => 'PO-PIC-NAME',
+        'customer_name' => 'Customer PIC',
+        'pic_id' => $employee->id,
+        'pic_name' => null,
+        'status' => 'pending',
+        'created_by' => $employee->id,
+    ]);
+
+    $this->getJson('/job-orders/'.$jobOrderId)
+        ->assertOk()
+        ->assertJsonPath('pic_name', 'Sales Person');
 });
 
 it('limits users with only the Sales role to their PIC or assigned inquiry segmentation', function () {
@@ -423,6 +460,299 @@ it('creates a job order from an inquiry without a database connection error', fu
         ->toBe(125.25)
         ->and(DB::table('sales.job_order_details')->where('job_order_id', $jobOrderId)->value('product_name'))
         ->toBe('Soybean');
+});
+
+it('creates and lists a job order directly from a purchase order', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-DIRECT',
+        'first_name' => 'Direct',
+        'last_name' => 'Order Admin',
+        'username' => 'job.order.direct',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 1,
+    ]);
+    $salesPic = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-DIRECT-PIC',
+        'first_name' => 'Direct',
+        'last_name' => 'Sales',
+        'username' => 'job.order.direct.pic',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $salesPic->id,
+        'role_id' => 2,
+    ]);
+    $customerId = DB::table('core.customers')->insertGetId([
+        'code' => 'CUST-001',
+        'name' => 'Direct Customer',
+        'address' => '1 Direct Street',
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $date = now()->toDateString();
+    $response = $this->postJson(route('job-orders.store'), [
+        'date' => $date,
+        'customer_id' => $customerId,
+        'pic_id' => $salesPic->id,
+        'so_no' => 'SO-DIRECT-001',
+        'po_no' => 'PO-DIRECT-001',
+        'customer_no' => 'FORGED-CODE',
+        'customer_name' => 'Forged Customer',
+        'pic_name' => 'Direct Sales',
+        'details' => [
+            [
+                'kg' => '125.25',
+                'product_name' => 'Direct Product',
+            ],
+        ],
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('message', 'JO berhasil dibuat');
+
+    $jobOrderId = $response->json('id');
+    $this->assertDatabaseHas('sales.job_orders', [
+        'id' => $jobOrderId,
+        'inquiry_id' => null,
+        'customer_id' => $customerId,
+        'customer_no' => 'CUST-001',
+        'customer_name' => 'Direct Customer',
+        'customer_address' => '1 Direct Street',
+        'pic_id' => $salesPic->id,
+        'pic_name' => 'Direct Sales',
+        'so_no' => 'SO-DIRECT-001',
+    ]);
+    $this->assertDatabaseHas('sales.job_order_details', [
+        'job_order_id' => $jobOrderId,
+        'product_name' => 'Direct Product',
+    ]);
+    $this->putJson('/job-orders/'.$jobOrderId, [
+        'date' => $date,
+        'customer_id' => $customerId,
+        'pic_id' => $salesPic->id,
+        'so_no' => 'SO-DIRECT-001',
+        'po_no' => 'PO-DIRECT-001',
+        'customer_no' => 'CUST-001',
+        'customer_name' => 'Direct Customer',
+        'customer_address' => 'Alternate delivery address',
+        'pic_name' => 'Direct Sales',
+        'details' => [
+            [
+                'kg' => 125.25,
+                'product_name' => 'Direct Product',
+            ],
+        ],
+    ])->assertOk();
+    $this->assertDatabaseHas('sales.job_orders', [
+        'id' => $jobOrderId,
+        'customer_address' => 'Alternate delivery address',
+    ]);
+
+    $this->getJson(route('job-orders.customers', ['search' => 'cust-001']))
+        ->assertOk()
+        ->assertJsonFragment([
+            'id' => $customerId,
+            'code' => 'CUST-001',
+            'name' => 'Direct Customer',
+            'address' => '1 Direct Street',
+        ]);
+    $this->getJson(route('job-orders.customers', ['search' => 'direct customer']))
+        ->assertOk()
+        ->assertJsonFragment([
+            'id' => $customerId,
+            'code' => 'CUST-001',
+            'name' => 'Direct Customer',
+        ]);
+    $this->getJson(route('job-orders.customers', ['search' => '1 Direct Street']))
+        ->assertOk()
+        ->assertJsonCount(0);
+    $this->actingAs($salesPic)->getJson(route('job-orders.list', [
+        'start_date' => $date,
+        'end_date' => $date,
+    ]))
+        ->assertOk()
+        ->assertJsonFragment([
+            'inquiry_id' => null,
+            'inquiry_code' => 'PO',
+            'job_order_id' => $jobOrderId,
+            'so_no' => 'SO-DIRECT-001',
+        ]);
+    $this->getJson(route('job-orders.customers'))
+        ->assertForbidden();
+    $this->getJson(route('job-orders.products'))
+        ->assertForbidden();
+    $this->getJson('/job-orders/'.$jobOrderId)
+        ->assertOk()
+        ->assertJsonPath('inquiry_id', null)
+        ->assertJsonPath('details.0.product_name', 'Direct Product');
+});
+
+it('searches active products by code or name for job orders', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-PRODUCT-SEARCH',
+        'first_name' => 'Product',
+        'last_name' => 'Admin',
+        'username' => 'job.order.product.admin',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 1,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    Schema::create('core.products', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('code')->nullable();
+        $table->string('name');
+        $table->timestamp('deleted_at')->nullable();
+    });
+    DB::table('core.products')->insert([
+        ['code' => 'PRD-COCOA', 'name' => 'Cocoa Powder', 'deleted_at' => null],
+        ['code' => 'PRD-002', 'name' => 'Vanilla Extract', 'deleted_at' => null],
+        ['code' => 'PRD-DELETED', 'name' => 'Cocoa Flavor', 'deleted_at' => now()],
+    ]);
+
+    $this->getJson(route('job-orders.products', ['search' => 'prd-cocoa']))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonFragment([
+            'code' => 'PRD-COCOA',
+            'name' => 'Cocoa Powder',
+        ]);
+
+    $this->getJson(route('job-orders.products', ['search' => 'cOcOa']))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonFragment([
+            'code' => 'PRD-COCOA',
+            'name' => 'Cocoa Powder',
+        ]);
+});
+
+it('requires a customer selected from the master list for direct purchase orders', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-CUSTOMER-REQUIRED',
+        'first_name' => 'Customer',
+        'last_name' => 'Required',
+        'username' => 'job.order.customer.required',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 1,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $this->postJson(route('job-orders.store'), [
+        'date' => now()->toDateString(),
+        'so_no' => 'SO-CUSTOMER-REQUIRED',
+        'po_no' => 'PO-CUSTOMER-REQUIRED',
+        'customer_name' => 'Unlinked customer',
+        'pic_id' => $employee->id,
+        'details' => [
+            [
+                'kg' => 10,
+                'product_name' => 'Product',
+            ],
+        ],
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('customer_id');
+
+    $this->assertDatabaseCount('sales.job_orders', 0);
+});
+
+it('imports multiple Job Orders and groups rows by SO number', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-IMPORT',
+        'first_name' => 'Import',
+        'last_name' => 'Admin',
+        'username' => 'job.order.import',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 1,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $csv = implode("\n", [
+        'date,so_no,po_no,customer_no,customer_name,customer_address,pic_name,shipping_date,kg,product_code,product_name,packing,note',
+        now()->toDateString().',SO-IMPORT-001,PO-IMPORT-001,CUST-1,Customer One,Street One,Import Admin,,100,PROD-1,Product One,Bag,First item',
+        now()->toDateString().',SO-IMPORT-001,PO-IMPORT-001,CUST-1,Customer One,Street One,Import Admin,,50,PROD-2,Product Two,Box,Second item',
+        now()->toDateString().',SO-IMPORT-002,PO-IMPORT-002,CUST-2,Customer Two,Street Two,Import Admin,,75,PROD-3,Product Three,Drum,Third item',
+    ]);
+
+    $response = $this->postJson(route('job-orders.bulk-import'), [
+        'file' => UploadedFile::fake()->createWithContent('job-orders.csv', $csv),
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('created_count', 2);
+    $this->assertDatabaseCount('sales.job_orders', 2);
+    $this->assertDatabaseCount('sales.job_order_details', 3);
+    $this->assertDatabaseHas('sales.job_orders', [
+        'inquiry_id' => null,
+        'so_no' => 'SO-IMPORT-001',
+        'pic_id' => $employee->id,
+    ]);
+    $this->get(route('job-orders.template'))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+});
+
+it('rejects invalid bulk import rows without saving any Job Orders', function () {
+    $employee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-JO-IMPORT-INVALID',
+        'first_name' => 'Invalid',
+        'last_name' => 'Import Admin',
+        'username' => 'job.order.import.invalid',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 1,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+
+    $csv = implode("\n", [
+        'date,so_no,po_no,customer_name,pic_name,kg,product_name',
+        now()->toDateString().',SO-IMPORT-VALID,PO-IMPORT-VALID,Customer One,Invalid Import Admin,100,Product One',
+        now()->toDateString().',SO-IMPORT-INVALID,PO-IMPORT-INVALID,Customer Two,Invalid Import Admin,-1,Product Two',
+    ]);
+
+    $this->postJson(route('job-orders.bulk-import'), [
+        'file' => UploadedFile::fake()->createWithContent('job-orders.csv', $csv),
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('file');
+    $this->assertDatabaseCount('sales.job_orders', 0);
+    $this->assertDatabaseCount('sales.job_order_details', 0);
 });
 
 it('returns job order details to an authorized approver', function () {

@@ -13,7 +13,7 @@ return new class extends Migration
             Schema::create('sales.job_orders', function (Blueprint $table) {
                 $table->id();
 
-                $table->unsignedBigInteger('inquiry_id')->unique();
+                $table->unsignedBigInteger('inquiry_id')->nullable();
                 $table->date('date');
                 $table->string('so_no', 100);
                 $table->string('po_no', 100);
