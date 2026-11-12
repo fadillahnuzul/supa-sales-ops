@@ -643,7 +643,7 @@ function JobOrderForm({ order, picOptions, onError, isAdmin, canPrint, canCheck,
                     ))}
                 </div>
                 <label className="mt-4 block text-xs font-medium text-gray-600">Alamat Customer
-                    <textarea className={fieldClass} rows={3} disabled={readonly} value={order.customer_address ?? ''} onChange={(e) => updateField('customer_address', e.target.value)} />
+                    <textarea className={fieldClass} rows={3} disabled value={order.customer_address ?? ''} />
                 </label>
             </div>
             <div>

@@ -77,11 +77,7 @@ beforeEach(function () {
         $table->string('so_no')->unique();
         $table->string('po_no');
         $table->unsignedInteger('customer_id')->nullable();
-        $table->string('customer_no')->nullable();
-        $table->string('customer_name');
-        $table->text('customer_address')->nullable();
         $table->unsignedInteger('pic_id')->nullable();
-        $table->string('pic_name')->nullable();
         $table->date('shipping_date')->nullable();
         $table->string('status');
         $table->unsignedInteger('created_by');
@@ -179,7 +175,7 @@ it('lists unconverted inquiries alongside job orders assigned to the employee', 
         'date' => $date,
         'so_no' => 'SO-001',
         'po_no' => 'PO-001',
-        'customer_name' => 'Customer JO',
+        'customer_id' => $customerId,
         'status' => 'pending',
         'created_by' => $employee->id,
     ]);
@@ -291,7 +287,6 @@ it('allows a Sales Coordinator to open any listed job order', function () {
         'date' => now()->toDateString(),
         'so_no' => 'SO-COORDINATOR-DETAIL',
         'po_no' => 'PO-COORDINATOR-DETAIL',
-        'customer_name' => 'Customer JO',
         'status' => 'pending',
         'created_by' => $employee->id,
     ]);
@@ -325,9 +320,7 @@ it('returns the PIC name for a Sales user when the job order only stores the PIC
         'date' => now()->toDateString(),
         'so_no' => 'SO-PIC-NAME',
         'po_no' => 'PO-PIC-NAME',
-        'customer_name' => 'Customer PIC',
         'pic_id' => $employee->id,
-        'pic_name' => null,
         'status' => 'pending',
         'created_by' => $employee->id,
     ]);
@@ -388,7 +381,6 @@ it('limits users with only the Sales role to their PIC or assigned inquiry segme
             'date' => $date,
             'so_no' => 'SO-SALES-SCOPE-'.$index,
             'po_no' => 'PO-SALES-SCOPE-'.$index,
-            'customer_name' => 'Customer '.$index,
             'status' => 'pending',
             'created_by' => $employee->id,
         ]);
@@ -504,9 +496,6 @@ it('creates and lists a job order directly from a purchase order', function () {
         'pic_id' => $salesPic->id,
         'so_no' => 'SO-DIRECT-001',
         'po_no' => 'PO-DIRECT-001',
-        'customer_no' => 'FORGED-CODE',
-        'customer_name' => 'Forged Customer',
-        'pic_name' => 'Direct Sales',
         'details' => [
             [
                 'kg' => '125.25',
@@ -523,11 +512,7 @@ it('creates and lists a job order directly from a purchase order', function () {
         'id' => $jobOrderId,
         'inquiry_id' => null,
         'customer_id' => $customerId,
-        'customer_no' => 'CUST-001',
-        'customer_name' => 'Direct Customer',
-        'customer_address' => '1 Direct Street',
         'pic_id' => $salesPic->id,
-        'pic_name' => 'Direct Sales',
         'so_no' => 'SO-DIRECT-001',
     ]);
     $this->assertDatabaseHas('sales.job_order_details', [
@@ -540,10 +525,6 @@ it('creates and lists a job order directly from a purchase order', function () {
         'pic_id' => $salesPic->id,
         'so_no' => 'SO-DIRECT-001',
         'po_no' => 'PO-DIRECT-001',
-        'customer_no' => 'CUST-001',
-        'customer_name' => 'Direct Customer',
-        'customer_address' => 'Alternate delivery address',
-        'pic_name' => 'Direct Sales',
         'details' => [
             [
                 'kg' => 125.25,
@@ -553,8 +534,14 @@ it('creates and lists a job order directly from a purchase order', function () {
     ])->assertOk();
     $this->assertDatabaseHas('sales.job_orders', [
         'id' => $jobOrderId,
-        'customer_address' => 'Alternate delivery address',
+        'customer_id' => $customerId,
     ]);
+    $this->getJson('/job-orders/'.$jobOrderId)
+        ->assertOk()
+        ->assertJsonPath('customer_no', 'CUST-001')
+        ->assertJsonPath('customer_name', 'Direct Customer')
+        ->assertJsonPath('customer_address', '1 Direct Street')
+        ->assertJsonPath('pic_name', 'Direct Sales');
 
     $this->getJson(route('job-orders.customers', ['search' => 'cust-001']))
         ->assertOk()
@@ -697,11 +684,16 @@ it('imports multiple Job Orders and groups rows by SO number', function () {
             'employee_password_hash' => hash('sha256', $employee->password),
         ])->actingAs($employee);
 
+    DB::table('core.customers')->insert([
+        ['code' => 'CUST-1', 'name' => 'Customer One'],
+        ['code' => 'CUST-2', 'name' => 'Customer Two'],
+    ]);
+
     $csv = implode("\n", [
-        'date,so_no,po_no,customer_no,customer_name,customer_address,pic_name,shipping_date,kg,product_code,product_name,packing,note',
-        now()->toDateString().',SO-IMPORT-001,PO-IMPORT-001,CUST-1,Customer One,Street One,Import Admin,,100,PROD-1,Product One,Bag,First item',
-        now()->toDateString().',SO-IMPORT-001,PO-IMPORT-001,CUST-1,Customer One,Street One,Import Admin,,50,PROD-2,Product Two,Box,Second item',
-        now()->toDateString().',SO-IMPORT-002,PO-IMPORT-002,CUST-2,Customer Two,Street Two,Import Admin,,75,PROD-3,Product Three,Drum,Third item',
+        'date,so_no,po_no,customer_no,customer_name,pic_name,shipping_date,kg,product_code,product_name,packing,note',
+        now()->toDateString().',SO-IMPORT-001,PO-IMPORT-001,CUST-1,Customer One,Import Admin,,100,PROD-1,Product One,Bag,First item',
+        now()->toDateString().',SO-IMPORT-001,PO-IMPORT-001,CUST-1,Customer One,Import Admin,,50,PROD-2,Product Two,Box,Second item',
+        now()->toDateString().',SO-IMPORT-002,PO-IMPORT-002,CUST-2,Customer Two,Import Admin,,75,PROD-3,Product Three,Drum,Third item',
     ]);
 
     $response = $this->postJson(route('job-orders.bulk-import'), [
@@ -712,10 +704,17 @@ it('imports multiple Job Orders and groups rows by SO number', function () {
         ->assertJsonPath('created_count', 2);
     $this->assertDatabaseCount('sales.job_orders', 2);
     $this->assertDatabaseCount('sales.job_order_details', 3);
+    $customerOneId = DB::table('core.customers')->where('code', 'CUST-1')->value('id');
+    $customerTwoId = DB::table('core.customers')->where('code', 'CUST-2')->value('id');
     $this->assertDatabaseHas('sales.job_orders', [
         'inquiry_id' => null,
         'so_no' => 'SO-IMPORT-001',
+        'customer_id' => $customerOneId,
         'pic_id' => $employee->id,
+    ]);
+    $this->assertDatabaseHas('sales.job_orders', [
+        'so_no' => 'SO-IMPORT-002',
+        'customer_id' => $customerTwoId,
     ]);
     $this->get(route('job-orders.template'))
         ->assertOk()
@@ -739,6 +738,11 @@ it('rejects invalid bulk import rows without saving any Job Orders', function ()
         ->withSession([
             'employee_password_hash' => hash('sha256', $employee->password),
         ])->actingAs($employee);
+
+    DB::table('core.customers')->insert([
+        ['name' => 'Customer One'],
+        ['name' => 'Customer Two'],
+    ]);
 
     $csv = implode("\n", [
         'date,so_no,po_no,customer_name,pic_name,kg,product_name',
@@ -785,7 +789,6 @@ it('returns job order details to an authorized approver', function () {
         'date' => now()->toDateString(),
         'so_no' => 'SO-APPROVER-001',
         'po_no' => 'PO-APPROVER-001',
-        'customer_name' => 'Customer JO',
         'status' => 'pending',
         'created_by' => $employee->id,
     ]);
@@ -851,7 +854,6 @@ it('prints the creator, checker, and approver names with signature spaces', func
         'date' => now()->toDateString(),
         'so_no' => 'SO-PRINT-SIGNERS',
         'po_no' => 'PO-PRINT-SIGNERS',
-        'customer_name' => 'Customer JO',
         'status' => 'approved',
         'created_by' => $creator->id,
         'checked_by' => $checker->id,
@@ -920,7 +922,6 @@ it('allows Sales to print accessible job orders directly in A4 portrait', functi
         'date' => now()->toDateString(),
         'so_no' => 'SO-SALES-PRINT',
         'po_no' => 'PO-SALES-PRINT',
-        'customer_name' => 'Customer JO',
         'status' => 'pending',
         'created_by' => $employee->id,
     ]);

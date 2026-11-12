@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Core\CustomerModel;
 use App\Models\Core\EmployeeModel;
 use App\Models\Core\ProductModel;
+use App\Models\Sales\JobOrderModel;
 use App\Services\InquiryPrintService;
 use App\Support\SpreadsheetFile;
 use Illuminate\Http\Request;
@@ -183,8 +185,7 @@ class JobOrderController extends Controller
                     $matches->where('i.code', 'like', $term)
                         ->orWhere('jo.so_no', 'like', $term)
                         ->orWhere('jo.po_no', 'like', $term)
-                        ->orWhere('c.name', 'like', $term)
-                        ->orWhere('jo.customer_name', 'like', $term);
+                        ->orWhere('c.name', 'like', $term);
                 });
             })
             ->select([
@@ -200,6 +201,7 @@ class JobOrderController extends Controller
             ]);
 
         $directOrders = $this->visibleJobOrders($request)
+            ->leftJoin('core.customers as direct_customer', 'direct_customer.id', '=', 'jo.customer_id')
             ->whereNull('jo.inquiry_id')
             ->whereDate('jo.date', '>=', $start)
             ->whereDate('jo.date', '<=', $end)
@@ -208,14 +210,14 @@ class JobOrderController extends Controller
                 $query->where(function ($matches) use ($term) {
                     $matches->where('jo.so_no', 'like', $term)
                         ->orWhere('jo.po_no', 'like', $term)
-                        ->orWhere('jo.customer_name', 'like', $term);
+                        ->orWhere('direct_customer.name', 'like', $term);
                 });
             })
             ->select([
                 DB::raw('NULL as inquiry_id'),
                 'jo.date as inquiry_date',
                 DB::raw("'PO' as inquiry_code"),
-                'jo.customer_name',
+                'direct_customer.name as customer_name',
                 'jo.id as job_order_id',
                 'jo.so_no',
                 'jo.po_no',
@@ -314,25 +316,17 @@ class JobOrderController extends Controller
 
     public function show(Request $request, int $id)
     {
-        $jo = $this->accessibleJo($request, $id);
-        if (blank($jo->pic_name)) {
-            $picId = $jo->pic_id;
-
-            if ($picId === null && $jo->inquiry_id !== null) {
-                $picId = DB::table('sales.inquiries')
-                    ->where('id', $jo->inquiry_id)
-                    ->value('pic');
-            }
-
-            if ($picId !== null) {
-                $pic = DB::table('core.employees')
-                    ->where('id', $picId)
-                    ->first(['first_name', 'last_name']);
-                $jo->pic_name = $this->employeeName($pic);
-            }
-        }
-        $jo->details = DB::table('sales.job_order_details')->where('job_order_id', $id)
-            ->orderBy('sort_order')->orderBy('id')->get();
+        $accessibleJo = $this->accessibleJo($request, $id);
+        $jo = JobOrderModel::query()
+            ->with([
+                'customer',
+                'picEmployee',
+                'createdByEmployee',
+                'checkedByEmployee',
+                'approvedByEmployee',
+                'details',
+            ])
+            ->findOrFail($accessibleJo->id);
 
         return response()->json($jo);
     }
@@ -346,7 +340,6 @@ class JobOrderController extends Controller
             'po_no',
             'customer_no',
             'customer_name',
-            'customer_address',
             'pic_name',
             'shipping_date',
             'kg',
@@ -391,8 +384,6 @@ class JobOrderController extends Controller
             'customer_no' => 'customer_no',
             'customer name' => 'customer_name',
             'customer_name' => 'customer_name',
-            'customer address' => 'customer_address',
-            'customer_address' => 'customer_address',
             'pic sales' => 'pic_name',
             'pic_name' => 'pic_name',
             'shipping date' => 'shipping_date',
@@ -462,7 +453,6 @@ class JobOrderController extends Controller
                             'po_no',
                             'customer_no',
                             'customer_name',
-                            'customer_address',
                             'pic_name',
                             'shipping_date',
                         ])),
@@ -478,7 +468,6 @@ class JobOrderController extends Controller
                         'po_no',
                         'customer_no',
                         'customer_name',
-                        'customer_address',
                         'pic_name',
                         'shipping_date',
                     ] as $sharedField
@@ -511,9 +500,56 @@ class JobOrderController extends Controller
             ->where('is_active', true)
             ->get(['id', 'first_name', 'last_name'])
             ->groupBy(fn ($employee): string => mb_strtolower($this->employeeName($employee) ?? ''));
+        $customerCodes = collect($groups)
+            ->pluck('order.customer_no')
+            ->filter()
+            ->map(fn ($code): string => mb_strtolower(trim((string) $code)))
+            ->unique()
+            ->all();
+        $customerNames = collect($groups)
+            ->pluck('order.customer_name')
+            ->filter()
+            ->map(fn ($name): string => mb_strtolower(trim((string) $name)))
+            ->unique()
+            ->all();
+        $customers = CustomerModel::query()
+            ->where(function ($query) use ($customerCodes, $customerNames): void {
+                if ($customerCodes !== []) {
+                    $query->whereIn(DB::raw('LOWER(TRIM(code))'), $customerCodes);
+                }
+
+                if ($customerNames !== []) {
+                    $method = $customerCodes === [] ? 'whereIn' : 'orWhereIn';
+                    $query->{$method}(DB::raw('LOWER(TRIM(name))'), $customerNames);
+                }
+
+                if ($customerCodes === [] && $customerNames === []) {
+                    $query->whereRaw('1 = 0');
+                }
+            })
+            ->get(['id', 'code', 'name']);
+        $customersByCode = $customers
+            ->filter(fn (CustomerModel $customer): bool => filled($customer->code))
+            ->groupBy(fn (CustomerModel $customer): string => mb_strtolower(trim($customer->code)));
+        $customersByName = $customers
+            ->filter(fn (CustomerModel $customer): bool => filled($customer->name))
+            ->groupBy(fn (CustomerModel $customer): string => mb_strtolower(trim($customer->name)));
         $orders = [];
         $errors = [];
         foreach ($groups as $group) {
+            $customerCode = mb_strtolower(trim((string) ($group['order']['customer_no'] ?? '')));
+            $customerName = mb_strtolower(trim((string) ($group['order']['customer_name'] ?? '')));
+            $matchingCustomers = $customerCode !== ''
+                ? $customersByCode->get($customerCode, collect())
+                : $customersByName->get($customerName, collect());
+
+            if ($matchingCustomers->count() !== 1) {
+                $errors[] = "Baris {$group['line']}: Customer '{$group['order']['customer_name']}' tidak ditemukan atau tidak unik.";
+
+                continue;
+            }
+
+            $group['order']['customer_id'] = $matchingCustomers->first()->id;
             $picName = mb_strtolower(trim((string) ($group['order']['pic_name'] ?? '')));
             $matchingEmployees = $employeesByName->get($picName, collect());
 
@@ -524,8 +560,7 @@ class JobOrderController extends Controller
             }
 
             $group['order']['pic_id'] = $matchingEmployees->first()->id;
-            $group['order']['pic_name'] = $this->employeeName($matchingEmployees->first());
-            $validator = Validator::make($group['order'], $this->validationRules(null, true));
+            $validator = Validator::make($group['order'], $this->validationRules(null, true, true));
 
             if ($validator->fails()) {
                 foreach ($validator->errors()->all() as $message) {
@@ -561,12 +596,8 @@ class JobOrderController extends Controller
                     'date' => $order['date'],
                     'so_no' => $order['so_no'],
                     'po_no' => $order['po_no'],
-                    'customer_id' => $order['customer_id'] ?? null,
-                    'customer_no' => $order['customer_no'] ?? null,
-                    'customer_name' => $order['customer_name'],
-                    'customer_address' => $order['customer_address'] ?? null,
+                    'customer_id' => $order['customer_id'],
                     'pic_id' => $order['pic_id'],
-                    'pic_name' => $order['pic_name'],
                     'shipping_date' => $order['shipping_date'] ?? null,
                     'status' => 'pending',
                     'created_by' => $request->user()->id,
@@ -605,15 +636,11 @@ class JobOrderController extends Controller
                 'integer',
                 Rule::exists(DB::connection()->getName().'.core.customers', 'id'),
             ],
-            'customer_no' => ['nullable', 'string', 'max:100'],
-            'customer_name' => ['required', 'string', 'max:255'],
-            'customer_address' => ['nullable', 'string'],
             'pic_id' => [
                 $isDirect ? 'required' : 'nullable',
                 'integer',
                 Rule::exists(DB::connection()->getName().'.core.employees', 'id'),
             ],
-            'pic_name' => [$isDirect ? 'required' : 'nullable', 'string', 'max:255'],
             'shipping_date' => ['nullable', 'date_format:Y-m-d'],
             'details' => ['required', 'array', 'min:1'],
             'details.*.inquiry_detail_id' => ['nullable', 'integer'],
@@ -655,20 +682,14 @@ class JobOrderController extends Controller
         $isDirect = ! $request->filled('inquiry_id');
         $data = $this->validated($request, isDirect: $isDirect, requireCustomerSelection: $isDirect);
         $inquiryId = $data['inquiry_id'] ?? null;
-        $customer = $isDirect
-            ? DB::table('core.customers')->where('id', $data['customer_id'])->first()
-            : null;
 
         if ($inquiryId !== null) {
             abort_unless($this->visibleInquiries($request)->where('i.id', $inquiryId)->exists(), 403);
         }
 
-        $id = DB::transaction(function () use ($request, $data, $customer) {
+        $id = DB::transaction(function () use ($request, $data) {
             $inquiry = isset($data['inquiry_id'])
                 ? DB::table('sales.inquiries')->where('id', $data['inquiry_id'])->lockForUpdate()->first()
-                : null;
-            $pic = $inquiry === null
-                ? DB::table('core.employees')->where('id', $data['pic_id'])->first()
                 : null;
 
             if (isset($data['inquiry_id'])) {
@@ -681,12 +702,8 @@ class JobOrderController extends Controller
                 'date' => $data['date'],
                 'so_no' => $data['so_no'],
                 'po_no' => $data['po_no'],
-                'customer_id' => $inquiry?->customer_id ?? $customer?->id,
-                'customer_no' => $customer?->code ?? ($data['customer_no'] ?? null),
-                'customer_name' => $customer?->name ?? $data['customer_name'],
-                'customer_address' => $customer?->address ?? ($data['customer_address'] ?? null),
+                'customer_id' => $inquiry !== null ? $inquiry->customer_id : $data['customer_id'],
                 'pic_id' => $inquiry?->pic ?? ($data['pic_id'] ?? $request->user()->id),
-                'pic_name' => $inquiry?->pic_name ?? ($this->employeeName($pic) ?? ($data['pic_name'] ?? null)),
                 'shipping_date' => $data['shipping_date'] ?? null,
                 'status' => 'pending',
                 'created_by' => $request->user()->id,
@@ -707,27 +724,15 @@ class JobOrderController extends Controller
         $jo = $this->accessibleJo($request, $id);
         $isDirect = $jo->inquiry_id === null;
         $data = $this->validated($request, $id, $isDirect, $isDirect);
-        $customer = $isDirect
-            ? DB::table('core.customers')->where('id', $data['customer_id'])->first()
-            : null;
-        DB::transaction(function () use ($id, $data, $request, $jo, $customer) {
+        DB::transaction(function () use ($id, $data, $request, $jo) {
             $jo = DB::table('sales.job_orders')->where('id', $id)->lockForUpdate()->first();
             abort_if($jo->status === 'approved' || $jo->status === 'checked', 409, 'JO yang sudah approved tidak dapat diubah.');
-            $pic = $jo->inquiry_id === null
-                ? DB::table('core.employees')->where('id', $data['pic_id'])->first()
-                : null;
             DB::table('sales.job_orders')->where('id', $id)->update([
                 'date' => $data['date'],
                 'so_no' => $data['so_no'],
                 'po_no' => $data['po_no'],
-                'customer_id' => $jo->inquiry_id === null ? $customer?->id : $jo->customer_id,
+                'customer_id' => $jo->inquiry_id === null ? $data['customer_id'] : $jo->customer_id,
                 'pic_id' => $jo->inquiry_id === null ? $data['pic_id'] : $jo->pic_id,
-                'customer_no' => $jo->inquiry_id === null ? $customer?->code : ($data['customer_no'] ?? null),
-                'customer_name' => $jo->inquiry_id === null ? $customer?->name : $data['customer_name'],
-                'customer_address' => $jo->inquiry_id === null
-                    ? ($data['customer_address'] ?? $customer?->address)
-                    : ($data['customer_address'] ?? null),
-                'pic_name' => $jo->inquiry_id === null ? $this->employeeName($pic) : $jo->pic_name,
                 'shipping_date' => $data['shipping_date'] ?? null,
                 'updated_by' => $request->user()->id,
                 'updated_at' => now(),
@@ -802,20 +807,19 @@ class JobOrderController extends Controller
             array_intersect($this->roleIds($request), [1, 2, 3, 4, 5]) !== [],
             403
         );
-        $jo = $this->accessibleJo($request, $id);
+        $accessibleJo = $this->accessibleJo($request, $id);
+        $jo = JobOrderModel::query()
+            ->with(['customer', 'picEmployee', 'createdByEmployee', 'checkedByEmployee', 'approvedByEmployee'])
+            ->findOrFail($accessibleJo->id);
         $details = DB::table('sales.job_order_details')->where('job_order_id', $id)->orderBy('sort_order')->get();
         $signerIds = collect([$jo->created_by, $jo->checked_by, $jo->approved_by])
             ->filter()
             ->unique()
             ->values();
-        $signers = DB::table('core.employees')
-            ->whereIn('id', $signerIds)
-            ->get(['id', 'first_name', 'last_name'])
-            ->keyBy('id');
         $signatureNames = [
-            'created_by' => $this->employeeName($signers->get($jo->created_by)),
-            'checked_by' => $this->employeeName($signers->get($jo->checked_by)),
-            'approved_by' => $this->employeeName($signers->get($jo->approved_by)),
+            'created_by' => $jo->createdByEmployee?->full_name,
+            'checked_by' => $jo->checkedByEmployee?->full_name,
+            'approved_by' => $jo->approvedByEmployee?->full_name,
         ];
         $signatureRecords = DB::table('sales.sales_signatures')
             ->whereIn('user_id', $signerIds)
