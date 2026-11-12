@@ -12,8 +12,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        DB::statement(
+            'ALTER TABLE sales.job_orders DROP CONSTRAINT IF EXISTS job_orders_inquiry_id_unique'
+        );
+        DB::statement(
+            'DROP INDEX IF EXISTS sales.job_orders_inquiry_id_unique'
+        );
+
         Schema::table('sales.job_orders', function (Blueprint $table): void {
-            $table->dropUnique('job_orders_inquiry_id_unique');
             $table->unsignedBigInteger('inquiry_id')->nullable()->change();
         });
     }

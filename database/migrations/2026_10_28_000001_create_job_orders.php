@@ -72,12 +72,6 @@ return new class extends Migration
 
         DB::statement("
         CREATE UNIQUE INDEX IF NOT EXISTS
-        job_orders_inquiry_id_unique
-        ON sales.job_orders (inquiry_id)
-    ");
-
-        DB::statement("
-        CREATE UNIQUE INDEX IF NOT EXISTS
         job_orders_so_no_unique
         ON sales.job_orders (so_no)
     ");
