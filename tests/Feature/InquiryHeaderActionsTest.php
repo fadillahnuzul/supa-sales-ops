@@ -45,6 +45,7 @@ beforeEach(function () {
         $table->increments('id');
         $table->unsignedInteger('employee_id');
         $table->unsignedInteger('role_id');
+        $table->string('sales_code', 2)->nullable();
         $table->unique(['employee_id', 'role_id']);
     });
 
@@ -61,9 +62,22 @@ beforeEach(function () {
         $table->timestamps();
         $table->softDeletes();
     });
+
+    Schema::create('sales.inquiry_code_counters', function (Blueprint $table): void {
+        $table->bigIncrements('id');
+        $table->unsignedBigInteger('pic_id');
+        $table->date('inquiry_date');
+        $table->string('sales_code', 2);
+        $table->unsignedInteger('next_sequence')->default(1);
+        $table->unsignedInteger('reserved_sequence')->nullable();
+        $table->string('reserved_code', 100)->nullable()->unique();
+        $table->timestamps();
+        $table->unique(['pic_id', 'inquiry_date']);
+    });
 });
 
 afterEach(function () {
+    Schema::dropIfExists('sales.inquiry_code_counters');
     Schema::dropIfExists('sales.inquiries');
     Schema::dropIfExists('sales.user_role');
     Schema::dropIfExists('core.employee_segmentations');
@@ -88,6 +102,11 @@ function createAuthenticatedInquiryEditor(): EmployeeModel
     UserRoleModel::create([
         'employee_id' => $employee->id,
         'role_id' => 1,
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $employee->id,
+        'role_id' => 2,
+        'sales_code' => '01',
     ]);
 
     return $employee;
@@ -161,8 +180,20 @@ it('creates an inquiry with its own segmentation independently of its customer s
         'segmentation_id' => 20,
     ]);
 
+    $reservation = $this->postJson(route('inquiry.reserve-code'), [
+        'date' => '2026-10-10',
+        'pic' => $employee->id,
+    ])->assertOk()->json('code');
+
+    expect($reservation)->toBe('PN/SSN/1010.01.01/X/26');
+
+    $this->postJson(route('inquiry.reserve-code'), [
+        'date' => '2026-10-10',
+        'pic' => $employee->id,
+    ])->assertOk()->assertJsonPath('code', $reservation);
+
     $this->post(route('inquiry.store'), [
-        'code' => 'INQ-NEW-SEGMENT',
+        'code' => $reservation,
         'date' => '2026-10-10',
         'pic' => $employee->id,
         'customer_id' => $customerId,
@@ -170,10 +201,36 @@ it('creates an inquiry with its own segmentation independently of its customer s
     ])->assertRedirect()->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('sales.inquiries', [
-        'code' => 'INQ-NEW-SEGMENT',
+        'code' => $reservation,
         'customer_id' => $customerId,
         'segmentation_id' => 10,
     ]);
+
+    $nextReservation = $this->postJson(route('inquiry.reserve-code'), [
+        'date' => '2026-10-10',
+        'pic' => $employee->id,
+    ])->assertOk()->json('code');
+
+    expect($nextReservation)->toBe('PN/SSN/1010.01.02/X/26');
+
+    $this->post(route('inquiry.store'), [
+        'code' => $nextReservation,
+        'date' => '2026-10-10',
+        'pic' => $employee->id,
+        'segmentation_id' => 10,
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('sales.inquiries', [
+        'code' => $nextReservation,
+        'pic' => $employee->id,
+    ]);
+
+    $this->post(route('inquiry.store'), [
+        'code' => $reservation,
+        'date' => '2026-10-10',
+        'pic' => $employee->id,
+        'segmentation_id' => 10,
+    ])->assertSessionHasErrors('code');
 });
 
 it('rejects an inquiry code already used by another inquiry', function () {
@@ -202,4 +259,39 @@ it('rejects an inquiry code already used by another inquiry', function () {
 
     expect(DB::table('sales.inquiries')->where('id', $inquiryId)->value('code'))
         ->toBe('INQ-ONE');
+});
+
+it('requires a configured Sales code for the selected Inquiry PIC', function () {
+    $employee = createAuthenticatedInquiryEditor();
+    $pic = EmployeeModel::create([
+        'id_karyawan' => 'EMP-002',
+        'first_name' => 'Sales',
+        'last_name' => 'Without Code',
+        'username' => 'sales.without.code',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+    UserRoleModel::create([
+        'employee_id' => $pic->id,
+        'role_id' => 2,
+    ]);
+    $this->withoutMiddleware([EmployeeSession::class, HandleInertiaRequests::class])
+        ->withSession([
+            'employee_password_hash' => hash('sha256', $employee->password),
+        ])->actingAs($employee);
+    DB::table('core.employee_segmentations')->insert([
+        'employee_id' => $employee->id,
+        'segmentation_id' => 10,
+    ]);
+    DB::table('core.segmentations')->insert([
+        'id' => 10,
+        'name' => 'Food Processing',
+    ]);
+
+    $this->postJson(route('inquiry.reserve-code'), [
+        'date' => '2026-10-10',
+        'pic' => $pic->id,
+    ])->assertUnprocessable()->assertJsonValidationErrors('pic');
+
+    $this->assertDatabaseCount('sales.inquiries', 0);
 });

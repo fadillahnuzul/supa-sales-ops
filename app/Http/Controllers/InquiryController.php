@@ -6,6 +6,8 @@ use App\Models\Core\CustomerModel;
 use App\Models\Core\EmployeeModel;
 use App\Models\Core\SegmentationModel;
 use App\Models\Sales\InquiryModel;
+use App\Services\InquiryCodeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -14,6 +16,8 @@ use Inertia\Response;
 
 class InquiryController extends Controller
 {
+    public function __construct(private InquiryCodeService $inquiryCodeService) {}
+
     private function segmentationIds(): array
     {
         $employeeId = auth()->id();
@@ -612,9 +616,25 @@ class InquiryController extends Controller
         );
     }
 
-    /**
-     * Create Inquiry Header.
-     */
+    public function reserveCode(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'pic' => [
+                'required',
+                'integer',
+                Rule::exists(EmployeeModel::class, 'id'),
+            ],
+        ]);
+
+        $code = DB::transaction(fn (): string => $this->inquiryCodeService->reserve(
+            (int) $validated['pic'],
+            $validated['date']
+        ));
+
+        return response()->json(['code' => $code]);
+    }
+
     public function store(Request $request)
     {
         $segmentationIds = $this->segmentationIds();
@@ -624,10 +644,6 @@ class InquiryController extends Controller
                 'required',
                 'string',
                 'max:100',
-                Rule::unique(
-                    InquiryModel::class,
-                    'code'
-                )->whereNull('deleted_at'),
             ],
 
             'date' => [
@@ -641,7 +657,7 @@ class InquiryController extends Controller
             ],
 
             'pic' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists(EmployeeModel::class, 'id'),
             ],
@@ -671,29 +687,26 @@ class InquiryController extends Controller
             ],
         ]);
 
-        DB::table(
-            'sales.inquiries'
-        )->insert([
-            'code' => $validated['code'],
+        DB::transaction(function () use ($validated): void {
+            $this->inquiryCodeService->consume(
+                (int) $validated['pic'],
+                $validated['date'],
+                $validated['code']
+            );
 
-            'date' => $validated['date'],
-
-            'etd' => $validated['etd'] ?? null,
-
-            'pic' => $validated['pic'] ?? null,
-
-            'customer_id' => $validated['customer_id'] ?? null,
-
-            'segmentation_id' => $validated['segmentation_id'] ?? null,
-
-            'shipping_rate' => $validated['shipping_rate'] ?? null,
-
-            'note' => $validated['note'] ?? null,
-
-            'created_at' => now(),
-
-            'updated_at' => now(),
-        ]);
+            DB::table('sales.inquiries')->insert([
+                'code' => $validated['code'],
+                'date' => $validated['date'],
+                'etd' => $validated['etd'] ?? null,
+                'pic' => $validated['pic'],
+                'customer_id' => $validated['customer_id'] ?? null,
+                'segmentation_id' => $validated['segmentation_id'] ?? null,
+                'shipping_rate' => $validated['shipping_rate'] ?? null,
+                'note' => $validated['note'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
 
         return back()->with(
             'success',

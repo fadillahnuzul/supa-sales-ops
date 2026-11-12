@@ -173,6 +173,10 @@ Route::middleware('auth')->group(function () {
         '/inquiry',
         [InquiryController::class, 'store']
     )->name('inquiry.store');
+    Route::post(
+        '/inquiry/reserve-code',
+        [InquiryController::class, 'reserveCode']
+    )->name('inquiry.reserve-code');
     Route::put(
         '/inquiry/{inquiry}',
         [InquiryController::class, 'update']

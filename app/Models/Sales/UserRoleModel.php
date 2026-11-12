@@ -15,6 +15,7 @@ class UserRoleModel extends Model
     protected $fillable = [
         'employee_id',
         'role_id',
+        'sales_code',
     ];
 
     public function employee(): BelongsTo

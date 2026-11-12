@@ -20,6 +20,7 @@ interface UserOption {
   name: string;
   username: string | null;
   role_ids: number[];
+  sales_code?: string | null;
   segmentation_ids: number[];
 }
 
@@ -42,6 +43,7 @@ export default function UserRoleModal({
 }: Props) {
   const [employeeId, setEmployeeId] = useState('');
   const [roleIds, setRoleIds] = useState<number[]>([]);
+  const [salesCode, setSalesCode] = useState('');
   const [segmentationIds, setSegmentationIds] = useState<number[]>([]);
   const [processing, setProcessing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,6 +55,7 @@ export default function UserRoleModal({
 
     setEmployeeId(user?.employee_id?.toString() ?? '');
     setRoleIds(user?.role_ids ?? []);
+    setSalesCode(user?.sales_code ?? '');
     setSegmentationIds(user?.segmentation_ids ?? []);
     setErrors({});
   }, [open, user]);
@@ -79,6 +82,7 @@ export default function UserRoleModal({
     const payload = {
       employee_id: Number(employeeId),
       role_ids: roleIds,
+      sales_code: roleIds.includes(2) ? salesCode : null,
       segmentation_ids: segmentationIds,
     };
 
@@ -208,6 +212,31 @@ export default function UserRoleModal({
               <p className="mt-1 text-xs text-red-600">
                 {errors.role_ids || errors['role_ids.0']}
               </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="sales-code" className="mb-2 block text-sm font-semibold text-gray-700">
+              Kode Sales
+            </label>
+            <input
+              id="sales-code"
+              type="text"
+              inputMode="numeric"
+              maxLength={2}
+              value={salesCode}
+              disabled={!roleIds.includes(2)}
+              onChange={(event) => setSalesCode(event.target.value.replace(/\D/g, '').slice(0, 2))}
+              placeholder={roleIds.includes(2) ? 'Contoh: 01' : 'Pilih role Sales terlebih dahulu'}
+              className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-[#19875f] disabled:cursor-not-allowed disabled:bg-gray-100"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {roleIds.includes(2)
+                ? 'Isi dua digit unik untuk kode otomatis Inquiry.'
+                : 'Aktifkan role Sales untuk mengisi kode ini.'}
+            </p>
+            {errors.sales_code && (
+              <p className="mt-1 text-xs text-red-600">{errors.sales_code}</p>
             )}
           </div>
 

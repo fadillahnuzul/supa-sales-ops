@@ -1,6 +1,8 @@
-import { X } from 'lucide-react';
+import axios from 'axios';
+import { ChevronDown, Search, X } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { reserveInquiryCode } from '../../Services/InquiryPrintApi';
 import type { Inquiry } from '../../types/inquiry';
 
 interface CustomerOption {
@@ -99,6 +101,9 @@ export default function InquiryFormModal({
         initialForm
     );
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [codeError, setCodeError] = useState('');
+    const [isReservingCode, setIsReservingCode] = useState(false);
+    const [reservationVersion, setReservationVersion] = useState(0);
 
     useEffect(() => {
         if (!open) {
@@ -106,6 +111,7 @@ export default function InquiryFormModal({
         }
 
         setErrors({});
+        setCodeError('');
         setForm(inquiry
             ? {
                 code: inquiry.code,
@@ -119,12 +125,60 @@ export default function InquiryFormModal({
             }
             : {
                 ...initialForm,
+                date: getLocalDate(),
                 pic: defaultPicId !== undefined
                     && pics.some((pic) => Number(pic.id) === defaultPicId)
                     ? defaultPicId
                     : '',
             });
     }, [open, inquiry, defaultPicId, pics]);
+
+    useEffect(() => {
+        if (!open || inquiry) {
+            setIsReservingCode(false);
+
+            return;
+        }
+
+        if (!form.date || !form.pic) {
+            setForm((currentForm) => ({ ...currentForm, code: '' }));
+            setIsReservingCode(false);
+
+            return;
+        }
+
+        let isCurrentRequest = true;
+        setIsReservingCode(true);
+        setCodeError('');
+
+        reserveInquiryCode(form.date, Number(form.pic))
+            .then((code) => {
+                if (isCurrentRequest) {
+                    setForm((currentForm) => ({ ...currentForm, code }));
+                    setErrors((currentErrors) => {
+                        const nextErrors = { ...currentErrors };
+                        delete nextErrors.code;
+
+                        return nextErrors;
+                    });
+                }
+            })
+            .catch((error: unknown) => {
+                if (isCurrentRequest) {
+                    setForm((currentForm) => ({ ...currentForm, code: '' }));
+                    setCodeError(getReservationErrorMessage(error));
+                }
+            })
+            .finally(() => {
+                if (isCurrentRequest) {
+                    setIsReservingCode(false);
+                }
+            });
+
+        return () => {
+            isCurrentRequest = false;
+        };
+    }, [open, inquiry, form.date, form.pic, reservationVersion]);
 
     if (!open) {
         return null;
@@ -133,6 +187,8 @@ export default function InquiryFormModal({
     function resetForm() {
         setForm(initialForm);
         setErrors({});
+        setCodeError('');
+        setIsReservingCode(false);
     }
 
     function handleClose() {
@@ -165,6 +221,11 @@ export default function InquiryFormModal({
             },
             onError: (validationErrors: Record<string, string>) => {
                 setErrors(validationErrors);
+
+                if (!inquiry && validationErrors.code) {
+                    setForm((currentForm) => ({ ...currentForm, code: '' }));
+                    setReservationVersion((version) => version + 1);
+                }
             },
         };
 
@@ -265,9 +326,10 @@ export default function InquiryFormModal({
                         "
                     >
                         {/* CODE */}
-                        <Field label="Inquiry Code">
+                        <Field label={inquiry ? 'Inquiry Code' : 'Inquiry Code (Otomatis)'}>
                             <input
                                 required
+                                readOnly={!inquiry}
 
                                 value={
                                     form.code
@@ -284,8 +346,20 @@ export default function InquiryFormModal({
                                     })
                                 } className={inputClass}
 
-                                placeholder="Contoh: INQ-2026-001"
+                                placeholder={inquiry ? 'Kode Inquiry' : isReservingCode ? 'Memesan kode...' : 'Kode akan ditampilkan otomatis'}
                             />
+                            {codeError && (
+                                <p role="alert" className="mt-1 text-xs text-red-600">
+                                    {codeError}
+                                </p>
+                            )}
+                            {!inquiry && (
+                                <p className="mt-1 text-xs text-gray-500">
+                                    {isReservingCode
+                                        ? 'Sedang menyiapkan kode Inquiry.'
+                                        : 'Kode mengikuti tanggal, Kode Sales PIC, dan nomor urut harian.'}
+                                </p>
+                            )}
                         </Field>
 
                         {/* DATE */}
@@ -301,14 +375,14 @@ export default function InquiryFormModal({
 
                                 onChange={(
                                     e
-                                ) =>
+                                ) => {
                                     setForm({
                                         ...form,
-
-                                        date:
-                                            e.target.value,
-                                    })
-                                }
+                                        date: e.target.value,
+                                        code: '',
+                                    });
+                                    setCodeError('');
+                                }}
 
                                 className={
                                     inputClass
@@ -349,13 +423,14 @@ export default function InquiryFormModal({
                                     form.pic
                                 }
                                 onChange={(
-                                    e) =>
+                                    e) => {
                                     setForm({
                                         ...form,
-                                        pic:
-                                            e.target.value,
-                                    })
-                                }
+                                        pic: e.target.value,
+                                        code: '',
+                                    });
+                                    setCodeError('');
+                                }}
 
                                 className={
                                     inputClass
@@ -375,45 +450,16 @@ export default function InquiryFormModal({
 
                         {/* CUSTOMER */}
                         <Field label="Customer">
-                            <select
-                                value={
-                                    form.customerId
-                                }
-
-                                onChange={(
-                                    e
-                                ) =>
+                            <CustomerSearchSelect
+                                customers={customers}
+                                value={form.customerId}
+                                onChange={(customerId) =>
                                     setForm({
                                         ...form,
-
-                                        customerId:
-                                            e.target.value,
+                                        customerId,
                                     })
                                 }
-
-                                className={
-                                    inputClass
-                                }
-                            >
-                                <option value="">
-                                    Pilih Customer
-                                </option>
-
-                                {customers.map(
-                                    (
-                                        customer
-                                    ) => (
-                                        <option
-                                            key={customer.id}
-                                            value={customer.id}
-                                        >
-                                            {customer.code
-                                                ? `${customer.code} — ${customer.name}`
-                                                : customer.name}
-                                        </option>
-                                    )
-                                )}
-                            </select>
+                            />
                         </Field>
 
                         {/* SEGMENTATION */}
@@ -556,6 +602,7 @@ export default function InquiryFormModal({
 
                         <button
                             type="submit"
+                            disabled={!inquiry && (!form.code || isReservingCode)}
 
                             className="
                                 rounded-lg
@@ -576,6 +623,171 @@ export default function InquiryFormModal({
             </div>
         </div>
     );
+}
+
+function CustomerSearchSelect({
+    customers,
+    value,
+    onChange,
+}: {
+    customers: CustomerOption[];
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    const listId = useId();
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+    const selectedCustomer = customers.find(
+        (customer) => String(customer.id) === value
+    );
+    const selectedLabel = selectedCustomer
+        ? formatCustomerLabel(selectedCustomer)
+        : '';
+    const filteredCustomers = customers.filter((customer) => {
+        const searchText = `${customer.code ?? ''} ${customer.name}`.toLocaleLowerCase();
+
+        return searchText.includes(searchTerm.trim().toLocaleLowerCase());
+    });
+
+    function selectCustomer(customer: CustomerOption | null) {
+        onChange(customer ? String(customer.id) : '');
+        setSearchTerm('');
+        setIsOpen(false);
+    }
+
+    return (
+        <div
+            className="relative"
+            onBlur={(event) => {
+                if (
+                    !(event.relatedTarget instanceof Node)
+                    || !event.currentTarget.contains(event.relatedTarget)
+                ) {
+                    setIsOpen(false);
+                    setSearchTerm('');
+                }
+            }}
+        >
+            <div className="relative">
+                <Search
+                    size={16}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                    type="text"
+                    role="combobox"
+                    aria-label="Cari customer berdasarkan kode atau nama company"
+                    aria-autocomplete="list"
+                    aria-expanded={isOpen}
+                    aria-controls={listId}
+                    autoComplete="off"
+                    value={isOpen ? searchTerm : selectedLabel}
+                    onFocus={() => {
+                        setSearchTerm('');
+                        setActiveIndex(0);
+                        setIsOpen(true);
+                    }}
+                    onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setActiveIndex(0);
+                        setIsOpen(true);
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            setActiveIndex((index) =>
+                                Math.min(index + 1, filteredCustomers.length)
+                            );
+                        } else if (event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            setActiveIndex((index) => Math.max(index - 1, 0));
+                        } else if (event.key === 'Enter' && isOpen) {
+                            event.preventDefault();
+                            selectCustomer(
+                                activeIndex === 0
+                                    ? null
+                                    : filteredCustomers[activeIndex - 1] ?? null
+                            );
+                        } else if (event.key === 'Escape') {
+                            setIsOpen(false);
+                            setSearchTerm('');
+                        }
+                    }}
+                    placeholder="Cari kode atau nama company..."
+                    className={`${inputClass} pl-9 pr-9`}
+                />
+                <ChevronDown
+                    size={16}
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition ${isOpen ? 'rotate-180' : ''}`}
+                />
+            </div>
+
+            {isOpen && (
+                <div
+                    id={listId}
+                    role="listbox"
+                    aria-label="Daftar customer"
+                    className="absolute top-full z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                >
+                    <button
+                        type="button"
+                        role="option"
+                        aria-selected={!value}
+                        onClick={() => selectCustomer(null)}
+                        className={`w-full px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-50 ${activeIndex === 0 ? 'bg-gray-50' : ''}`}
+                    >
+                        Pilih Customer
+                    </button>
+                    {filteredCustomers.map((customer, index) => (
+                        <button
+                            key={customer.id}
+                            type="button"
+                            role="option"
+                            aria-selected={String(customer.id) === value}
+                            onClick={() => selectCustomer(customer)}
+                            className={`w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 ${activeIndex === index + 1 ? 'bg-gray-50' : ''}`}
+                        >
+                            {formatCustomerLabel(customer)}
+                        </button>
+                    ))}
+                    {filteredCustomers.length === 0 && (
+                        <p className="px-3 py-2 text-sm text-gray-500">
+                            Customer tidak ditemukan.
+                        </p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function formatCustomerLabel(customer: CustomerOption): string {
+    return customer.code
+        ? `${customer.code} — ${customer.name}`
+        : customer.name;
+}
+
+function getLocalDate(): string {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+function getReservationErrorMessage(error: unknown): string {
+    if (axios.isAxiosError<{ errors?: Record<string, string[]>; message?: string }>(error)) {
+        const errors = error.response?.data?.errors;
+        const message = errors?.pic?.[0] ?? errors?.date?.[0] ?? error.response?.data?.message;
+
+        return message ?? 'Kode Inquiry gagal disiapkan. Silakan coba lagi.';
+    }
+
+    return 'Kode Inquiry gagal disiapkan. Silakan coba lagi.';
 }
 
 function Field({

@@ -51,6 +51,7 @@ beforeEach(function () {
         $table->increments('id');
         $table->unsignedInteger('employee_id');
         $table->unsignedInteger('role_id');
+        $table->string('sales_code', 2)->nullable();
         $table->unique(['employee_id', 'role_id']);
     });
 });
@@ -294,16 +295,39 @@ it('saves and updates several roles for one employee from role management', func
     $this->post(route('role-management.store'), [
         'employee_id' => $employee->id,
         'role_ids' => [2, 3],
+        'sales_code' => '07',
         'segmentation_ids' => [],
     ])->assertRedirect(route('role-management'));
 
     expect($employee->fresh()->roleIds())->toBe([2, 3]);
+    $this->assertDatabaseHas('sales.user_role', [
+        'employee_id' => $employee->id,
+        'role_id' => 2,
+        'sales_code' => '07',
+    ]);
 
     $this->get(route('role-management'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('InquiryRoleManagement')
             ->where('users.1.role_ids', [2, 3])
+            ->where('users.1.sales_code', '07')
             ->where('users.1.role_names', ['Sales', 'Sales Coordinator']));
+
+    $anotherEmployee = EmployeeModel::create([
+        'id_karyawan' => 'EMP-003',
+        'first_name' => 'Another',
+        'last_name' => 'Sales',
+        'username' => 'another.sales',
+        'is_active' => true,
+        'password' => Hash::make('secret-password'),
+    ]);
+
+    $this->from(route('role-management'))->post(route('role-management.store'), [
+        'employee_id' => $anotherEmployee->id,
+        'role_ids' => [2],
+        'sales_code' => '07',
+        'segmentation_ids' => [],
+    ])->assertSessionHasErrors('sales_code');
 
     $this->put(route('role-management.update', $employee->id), [
         'employee_id' => $employee->id,
@@ -312,4 +336,9 @@ it('saves and updates several roles for one employee from role management', func
     ])->assertRedirect(route('role-management'));
 
     expect($employee->fresh()->roleIds())->toBe([4]);
+    $this->assertDatabaseHas('sales.user_role', [
+        'employee_id' => $employee->id,
+        'role_id' => 4,
+        'sales_code' => null,
+    ]);
 });

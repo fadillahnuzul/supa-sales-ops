@@ -52,6 +52,18 @@ export type UploadedSalesSignature = Omit<SalesSignature, 'id'> & {
     id: number;
 };
 
+export async function reserveInquiryCode(
+    date: string,
+    pic: number
+): Promise<string> {
+    const response = await web.post<{ code: string }>('/inquiry/reserve-code', {
+        date,
+        pic,
+    });
+
+    return response.data.code;
+}
+
 export interface UploadTemplatePayload {
     name: string;
     division?: string;

@@ -41,6 +41,7 @@ export interface UserOption {
   role_ids: number[];
   role_names: string[];
   role_name: string;
+  sales_code: string | null;
   segmentation_ids: number[];
   segmentation_names: string[];
 }
@@ -74,6 +75,7 @@ export default function InquiryRoleManagement({
       const searchable = [
         user.name,
         user.username,
+        user.sales_code,
         ...user.role_names,
         ...(user.segmentation_names ?? []),
       ]
@@ -188,6 +190,7 @@ export default function InquiryRoleManagement({
                       <th className="px-4 py-3">Nama</th>
                       <th className="px-4 py-3">Username</th>
                       <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Kode Sales</th>
                       <th className="px-4 py-3">Segmentation</th>
                       <th className="px-4 py-3 text-center">
                         Action
@@ -217,6 +220,12 @@ export default function InquiryRoleManagement({
 
                           <td className="px-4 py-3 text-gray-600">
                             {user.username || '-'}
+                          </td>
+
+                          <td className="px-4 py-3 font-mono text-gray-700">
+                            {user.role_ids.includes(2) && user.sales_code
+                              ? user.sales_code
+                              : '-'}
                           </td>
 
                           <td className="px-4 py-3">
@@ -272,7 +281,7 @@ export default function InquiryRoleManagement({
                     {filteredData.length === 0 && (
                       <tr>
                         <td
-                          colSpan={6}
+                          colSpan={7}
                           className="px-4 py-4 text-center text-gray-400"
                         >
                           Tidak ada data user yang ditemukan.

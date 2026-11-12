@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Core\EmployeeModel;
 use App\Models\Core\SegmentationModel;
 use App\Models\Sales\RoleModel;
+use App\Models\Sales\UserRoleModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,7 @@ class RoleManagementController extends Controller
             ->select([
                 'ur.employee_id',
                 'ur.role_id',
+                'ur.sales_code',
                 'r.name as role_name',
                 'e.first_name',
                 'e.last_name',
@@ -60,6 +62,8 @@ class RoleManagementController extends Controller
                     ->unique()
                     ->values()
                     ->all() ?? [];
+                $salesRole = $employeeAssignments
+                    ->first(fn ($assignment): bool => (int) $assignment->role_id === 2);
 
                 return [
                     'id' => (int) $employeeId,
@@ -73,6 +77,7 @@ class RoleManagementController extends Controller
                         ->all(),
                     'role_names' => $roleNames,
                     'role_name' => implode(', ', $roleNames),
+                    'sales_code' => $salesRole?->sales_code,
                     'segmentation_ids' => $segmentationIds,
                     'segmentation_names' => $segmentationNames,
                 ];
@@ -100,7 +105,7 @@ class RoleManagementController extends Controller
         }
 
         DB::transaction(function () use ($data): void {
-            $this->syncRoles($data['employee_id'], $data['role_ids']);
+            $this->syncRoles($data['employee_id'], $data['role_ids'], $data['sales_code']);
             $this->syncSegmentation(
                 $data['employee_id'],
                 $data['segmentation_ids']
@@ -122,6 +127,10 @@ class RoleManagementController extends Controller
             'name' => $employee->full_name,
             'username' => $employee->username,
             'role_ids' => $employee->roleIds(),
+            'sales_code' => DB::table('sales.user_role')
+                ->where('employee_id', $id)
+                ->where('role_id', 2)
+                ->value('sales_code'),
             'segmentation_ids' => $employee->segmentation
                 ->pluck('segmentation_id')
                 ->map(fn ($segmentationId): int => (int) $segmentationId)
@@ -132,7 +141,7 @@ class RoleManagementController extends Controller
 
     public function update(Request $request, int $id)
     {
-        $data = $this->validateData($request);
+        $data = $this->validateData($request, $id);
 
         if ((int) $data['employee_id'] !== $id) {
             throw ValidationException::withMessages([
@@ -140,8 +149,15 @@ class RoleManagementController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($data, $id): void {
-            $this->syncRoles($id, $data['role_ids']);
+        $salesCode = $request->exists('sales_code')
+            ? ($data['sales_code'] ?? null)
+            : DB::table('sales.user_role')
+                ->where('employee_id', $id)
+                ->where('role_id', 2)
+                ->value('sales_code');
+
+        DB::transaction(function () use ($data, $id, $salesCode): void {
+            $this->syncRoles($id, $data['role_ids'], $salesCode);
             $this->syncSegmentation(
                 $id,
                 $data['segmentation_ids']
@@ -157,11 +173,19 @@ class RoleManagementController extends Controller
      * @return array{
      *     employee_id: int,
      *     role_ids: list<int>,
+     *     sales_code: ?string,
      *     segmentation_ids: list<int>
      * }
      */
-    private function validateData(Request $request): array
+    private function validateData(Request $request, ?int $ignoreEmployeeId = null): array
     {
+        $salesCodeUnique = Rule::unique(UserRoleModel::class, 'sales_code')
+            ->where(fn ($query) => $query->where('role_id', 2));
+
+        if ($ignoreEmployeeId !== null) {
+            $salesCodeUnique->ignore($ignoreEmployeeId, 'employee_id');
+        }
+
         $data = $request->validate([
             'employee_id' => [
                 'required',
@@ -179,6 +203,14 @@ class RoleManagementController extends Controller
                 'distinct',
                 Rule::exists(RoleModel::class, 'id'),
             ],
+            'sales_code' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'size:2',
+                'regex:/^\d{2}$/D',
+                $salesCodeUnique,
+            ],
             'segmentation_ids' => [
                 'present',
                 'array',
@@ -193,12 +225,16 @@ class RoleManagementController extends Controller
             'role_ids.required' => 'Pilih minimal satu role.',
             'role_ids.min' => 'Pilih minimal satu role.',
             'role_ids.*.exists' => 'Role tidak valid.',
+            'sales_code.size' => 'Kode Sales harus terdiri dari dua digit.',
+            'sales_code.regex' => 'Kode Sales harus terdiri dari dua digit.',
+            'sales_code.unique' => 'Kode Sales sudah digunakan employee lain.',
             'segmentation_ids.*.exists' => 'Segmentation tidak valid.',
         ]);
 
         return [
             'employee_id' => (int) $data['employee_id'],
             'role_ids' => array_map('intval', $data['role_ids']),
+            'sales_code' => $data['sales_code'] ?? null,
             'segmentation_ids' => array_map('intval', $data['segmentation_ids']),
         ];
     }
@@ -206,7 +242,7 @@ class RoleManagementController extends Controller
     /**
      * @param  list<int>  $roleIds
      */
-    private function syncRoles(int $employeeId, array $roleIds): void
+    private function syncRoles(int $employeeId, array $roleIds, ?string $salesCode): void
     {
         DB::table('sales.user_role')
             ->where('employee_id', $employeeId)
@@ -217,6 +253,7 @@ class RoleManagementController extends Controller
                 fn (int $roleId): array => [
                     'employee_id' => $employeeId,
                     'role_id' => $roleId,
+                    'sales_code' => $roleId === 2 ? $salesCode : null,
                 ],
                 $roleIds
             )

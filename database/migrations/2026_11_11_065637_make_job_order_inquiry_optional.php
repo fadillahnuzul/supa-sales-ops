@@ -21,7 +21,7 @@ return new class extends Migration
 
         Schema::table('sales.job_orders', function (Blueprint $table): void {
             $table->unsignedBigInteger('inquiry_id')->nullable()->change();
-        });
+        }); 
     }
 
     /**
